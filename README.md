@@ -20,6 +20,15 @@ It is built for the Hikvision interactive teaching boards and also runs on Andro
 
 To update, install a newer APK over the old one. Uploaded presentations are kept.
 
+### Sharing the APK over Wi-Fi
+
+```bash
+npm run share
+```
+
+This prints a link, such as `http://192.168.1.68:8080/`, and a QR code. On a phone or board connected to the same Wi-Fi, open the link or scan the code, then tap **Download for Android**.
+If Windows asks whether Node.js may use the network, allow it on **Private networks**. Press Ctrl+C to stop sharing.
+
 ### Building the APK
 
 ```bash

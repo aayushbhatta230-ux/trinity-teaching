@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "apk": "powershell -ExecutionPolicy Bypass -File scripts/build-apk.ps1"
+    "apk": "powershell -ExecutionPolicy Bypass -File scripts/build-apk.ps1",
+    "share": "node scripts/share-apk.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.6.9",
@@ -24,6 +25,7 @@
   "devDependencies": {
     "@capacitor/cli": "^7.6.9",
     "@vitejs/plugin-react": "^4.3.0",
+    "qrcode": "^1.5.4",
     "vite": "^5.4.0",
     "vite-plugin-singlefile": "^2.3.3"
   },
