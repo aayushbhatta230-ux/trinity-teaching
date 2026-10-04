@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Trinity Teaching</string>
+    <string name="title_activity_main">Trinity Teaching</string>
+    <string name="package_name">np.edu.trinity.teaching</string>
+    <string name="custom_url_scheme">np.edu.trinity.teaching</string>
+</resources>

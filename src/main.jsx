@@ -16,18 +16,6 @@ import App from './App.jsx';
 window.addEventListener('contextmenu', (e) => e.preventDefault());
 document.addEventListener('gesturestart', (e) => e.preventDefault());
 
-// Installable app + offline support when served over http(s). Opening index.html straight from disk
-// (file://) skips both, because Chrome does not allow manifests or service workers there.
-if (/^https?:$/.test(window.location.protocol)) {
-  const link = document.createElement('link');
-  link.rel = 'manifest';
-  link.href = './manifest.webmanifest';
-  document.head.appendChild(link);
-}
-if ('serviceWorker' in navigator && /^https?:$/.test(window.location.protocol)) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
-}
-
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <App />

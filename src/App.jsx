@@ -8,6 +8,7 @@ import ChoiceScreen from './screens/ChoiceScreen.jsx';
 import TeacherScreen from './screens/TeacherScreen.jsx';
 import ResourcesScreen from './screens/ResourcesScreen.jsx';
 import Viewer from './viewer/Viewer.jsx';
+import { useHardwareBack, hasOpenOverlay, exitApp } from './lib/native.js';
 
 const FLOW = new Set(STEPS.map((s) => s.id));
 
@@ -34,7 +35,8 @@ export default function App() {
     let t;
     const arm = () => {
       clearTimeout(t);
-      t = setTimeout(() => navigate('home', {}, { replace: true }), INSTITUTION.idleResetMs);
+      // Never reset while a dialog is open (e.g. a teacher is picking a file to upload).
+      t = setTimeout(() => (hasOpenOverlay() ? arm() : navigate('home', {}, { replace: true })), INSTITUTION.idleResetMs);
     };
     const evs = ['pointerdown', 'keydown', 'wheel', 'touchstart'];
     evs.forEach((e) => window.addEventListener(e, arm, { passive: true }));
@@ -63,6 +65,14 @@ export default function App() {
     open: (id) => navigate('view', { ...toParams(sel), r: id }),
     setPage: (id, page) => navigate('view', { ...toParams(sel), r: id, pg: page }, { replace: true }),
   };
+
+  // Android Back button: Viewer → Presentations, a step → the previous step, Home → exit.
+  useHardwareBack(() => {
+    if (path === 'home') exitApp();
+    else if (path === 'view') go.resources();
+    else if (FLOW.has(path)) go.back(path);
+    else go.home();
+  });
 
   let screen;
   if (blocked) screen = null;

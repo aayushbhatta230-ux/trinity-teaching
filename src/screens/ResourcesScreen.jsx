@@ -6,6 +6,7 @@ import ConfirmDialog from '../components/ConfirmDialog.jsx';
 import { getSubject, getPortion, hasPortionChoice, resolveTeacher } from '../lib/catalog.js';
 import { usePresentations, deletePresentation } from '../lib/library.js';
 import { formatDate, formatSize } from '../lib/format.js';
+import { isNativeApp } from '../lib/native.js';
 
 /** Chapter-wise presentations uploaded by the assigned teacher for this class. */
 export default function ResourcesScreen({ sel, go }) {
@@ -54,7 +55,7 @@ export default function ResourcesScreen({ sel, go }) {
         <div className="empty">
           <Icon name="alert" size={96} />
           <h2>This board’s storage is not available</h2>
-          <p>Open the app in Chrome (not in a private window) to upload and view presentations.</p>
+          <p>{isNativeApp ? 'Restart the app. If this keeps happening, check that the device has free storage.' : 'Open the app in Chrome (not in a private window) to upload and view presentations.'}</p>
         </div>
       ) : items.length ? (
         <div className="files">

@@ -5,6 +5,7 @@ import { openPdf, isPdf } from '../lib/pdf.js';
 import { formatSize, titleFromFileName } from '../lib/format.js';
 import { getClass, getPortion, getSubject, hasPortionChoice } from '../lib/catalog.js';
 import { sectionCode } from '../data/structure.js';
+import { useBackHandler } from '../lib/native.js';
 
 const MAX_CHAPTER = 40;
 const userError = (message) => Object.assign(new Error(message), { forUser: true });
@@ -69,6 +70,8 @@ export default function UploadDialog({ sel, teacher, defaultChapter, onClose, on
       setStatus({ busy: false, error: full ? 'The board is out of storage space. Remove old presentations and try again.' : 'Saving failed. Please try again.' });
     }
   };
+
+  useBackHandler(true, () => { if (!status.busy) onClose(); });
 
   const canSave = file && title.trim() && !status.busy;
 

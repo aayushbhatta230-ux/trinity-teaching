@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import Icon from './Icon.jsx';
+import { useBackHandler } from '../lib/native.js';
 
 export default function ConfirmDialog({ title, message, confirmLabel = 'OK', onConfirm, onCancel }) {
   const [busy, setBusy] = useState(false);
+  useBackHandler(true, () => { if (!busy) onCancel(); });
   return (
     <div className="overlay" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title">
       <div className="dialog dialog-sm">

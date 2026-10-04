@@ -9,6 +9,7 @@ import { getTeacher, resolveTeacher } from '../lib/catalog.js';
 import { getPresentation } from '../lib/library.js';
 import { openPdf, renderPage } from '../lib/pdf.js';
 import { formatDate, formatSize } from '../lib/format.js';
+import { isNativeApp, useBackHandler } from '../lib/native.js';
 
 const ZOOMS = [1, 1.25, 1.5, 2, 2.5, 3];
 
@@ -26,7 +27,8 @@ function useFullscreen() {
       if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
     } else {
       setOn(true);
-      document.documentElement.requestFullscreen?.().catch(() => {});
+      // The Android app is already immersive full screen; in a browser, ask for full screen too.
+      if (!isNativeApp) document.documentElement.requestFullscreen?.().catch(() => {});
     }
   }, [on]);
   return [on, toggle];
@@ -104,6 +106,8 @@ function PdfViewer({ rec, doc, aspect, page, go }) {
   const [present, togglePresent] = useFullscreen();
   const [grid, setGrid] = useState(false);
   const rem = useRemPx() / 16;
+  useBackHandler(grid, () => setGrid(false));
+  useBackHandler(present && !grid, togglePresent);
 
   const goto = useCallback((k) => {
     const n = Math.min(Math.max(k, 1), total);

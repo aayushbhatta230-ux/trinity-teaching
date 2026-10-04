@@ -1,0 +1,14 @@
+{
+  "appId": "np.edu.trinity.teaching",
+  "appName": "Trinity Teaching",
+  "webDir": "dist",
+  "android": {
+    "allowMixedContent": false,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false,
+    "backgroundColor": "#FFF9F1"
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}

@@ -1,33 +1,41 @@
-# Trinity Teaching Resources
+# Trinity Teaching
 
-Touchscreen classroom application for **Trinity International College**, Dillibazar Height, Kathmandu.
-It is built for the Hikvision interactive teaching boards and also works on tablets and phones.
+Android classroom app for **Trinity International College**, Dillibazar Height, Kathmandu.
+It is built for the Hikvision interactive teaching boards and also runs on Android tablets and phones.
 
 **Flow:** Class → Shift → Group → Section → Subject → (Portion) → Teacher (assigned automatically) → Chapter presentations → Viewer
 
-## Running it
+## The Android app
 
-### On a board or PC, with nothing installed
+- **Full screen:** immersive mode, with the system bars hidden (swipe from the edge to show them). The screen stays on while the app is open.
+- **Fully offline:** the app, fonts, logo and PDF renderer are all inside the APK.
+- **Back button:** the Android Back button closes an open dialog first, then steps back through the flow, and exits from Home.
+- **App ID:** `np.edu.trinity.teaching`
 
-Run `npm run build` once, then copy **`dist/index.html`** to the board and open it in Chrome.
-It is one self-contained file: scripts, styles, fonts, logo and the PDF renderer are all inlined, so it runs straight from disk (`file://`) or a USB stick, with no server and no internet.
+### Installing on a board or phone
 
-### As an installable Chrome app
+1. Copy `release/TrinityTeaching-<version>.apk` to the device, for example by USB drive or file transfer.
+2. Open it. If Android asks, allow **Install unknown apps** for your file manager.
+3. Open **Trinity Teaching** from the app list.
 
-Serve the `dist/` folder over http(s), for example from the college intranet, or locally with:
+To update, install a newer APK over the old one. Uploaded presentations are kept.
 
-```bash
-npm start
-```
-
-Chrome then offers **Install app**. The installed app opens full-screen and keeps working offline after the first load.
-
-### For development
+### Building the APK
 
 ```bash
 npm install
-npm run dev
+npm run apk
 ```
+
+This builds the app, copies it into the Android project (`android/`), compiles it, and writes `release/TrinityTeaching-<version>.apk`.
+
+- **Tools needed:** JDK 21 and the Android SDK, with the Android 35 platform and build-tools 35.
+  - On the original build PC they are in `%LOCALAPPDATA%\TrinityBuild` (JDK) and `%LOCALAPPDATA%\Android\Sdk` (SDK).
+  - Anywhere else, set `JAVA_HOME` and `ANDROID_HOME`.
+- **Android Studio:** you can also open `android/` there and choose Build → Build APK.
+- **Releases:** before each release, bump `version` in `package.json`, and `versionCode` and `versionName` in `android/app/build.gradle`.
+
+For development in a desktop browser, run `npm run dev`.
 
 ## Presentations
 
@@ -37,14 +45,14 @@ The app shows only **chapter presentations uploaded by teachers**. There is no s
 
 1. Go to the class, section, subject and portion.
 2. On the Presentations screen, tap **Add presentation**.
-3. Choose the PDF, for example from a USB drive.
+3. Choose the PDF from the Android file picker, for example from a USB drive, Downloads or Google Drive.
 4. Set the chapter number and title.
 5. Choose **All my sections** or **Only this section**, then tap **Save to board**.
 
 - **Format:** PDF only. In PowerPoint use **File → Save As → PDF**. Choosing a `.pptx` file shows this instruction instead of uploading.
-- **Where files are stored:** on the board, in Chrome's own storage (IndexedDB). They work offline and from disk.
-  - Each board keeps its own library, so upload on every board where the presentation is needed.
-  - Clearing Chrome's site data for the app removes the uploads.
+- **Where files are stored:** in the app's private storage on that device. They work offline.
+  - Each device keeps its own library, so upload on every board where the presentation is needed.
+  - Uninstalling the app, or **Clear storage** in Android settings, removes the uploads.
 - **Removing files:** tap **Manage**, then tap a presentation to remove it. The app asks for confirmation first.
 - **Who sees what:** a presentation shows only for its class and portion, and only while that teacher is assigned to it. If it was uploaded for "Only this section", it shows only in that section.
 
@@ -55,7 +63,8 @@ The viewer is read-only on purpose. It has no editing, pen, annotation or highli
 - Uploaded PDFs are rendered with Mozilla pdf.js, which is bundled into the app.
 - Previous and Next buttons, a slide grid, and thumbnails
 - Swipe to change slide, double-tap to zoom
-- Zoom from Fit up to 300%, and full screen
+- Zoom from Fit up to 300%
+- **Full Screen** hides the header and thumbnails.
 - Keyboard and presentation clickers: ← → PgUp PgDn, + −, F
 
 ## Brand
@@ -64,20 +73,20 @@ The viewer is read-only on purpose. It has no editing, pen, annotation or highli
   - `trinity-mark.png`, the knot
   - `trinity-wordmark.png`, the lettering
   - `trinity-logo.png`, the full stacked logo
-  - The app icons are `public/icon-192.png` and `public/icon-512.png`.
+- **Android icons and splash screens:** generated from the official mark and logo, in `android/app/src/main/res/mipmap-*` and `drawable*/splash.png`.
 - **Colours:** sampled from the logo: crimson `#AE2F32`, gold `#FAB032`, and a cream background.
 - **Fonts:** Poppins for the interface and Noto Sans Devanagari for Nepali. Both are bundled.
-- **Responsive layout:** sizes are in `rem`, and the root font size follows the screen.
-  - A 1920×1080 board gets the reference size and a 4K board scales up.
-  - Tablets and phones get layouts that reflow.
+- **Screen sizes:** the layout adapts from phones to 4K boards.
 
-## Changing the school data (no code changes needed)
+## Changing the school data
 
 | What | File |
 |---|---|
 | Classes, shifts, groups, sections per shift, subjects per group, portions | `src/data/structure.js` |
 | Teachers and **who teaches what** | `src/data/teachers.js` |
 | College name, tagline, idle timeout | `src/data/institution.js` |
+
+Rebuild the APK after changing any of these.
 
 Teacher names are placeholders, such as "Physics Teacher 1", until the academic office supplies the real schedule. Replace the `name` values only. The teacher IDs link existing uploads to their teacher.
 
@@ -93,5 +102,5 @@ Each rule in `ASSIGNMENTS` maps a portion to a teacher, and `where` can narrow a
 
 ## Kiosk behaviour
 
-- The selection screens return to Home after 3 minutes without input. The viewer never times out.
+- The selection screens return to Home after 3 minutes without input. This is paused while a dialog is open. The viewer never times out.
 - Long-press menus and pinch-zooming the whole interface are turned off.
