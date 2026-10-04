@@ -1,0 +1,16 @@
+{
+  "name": "Trinity Teaching Resources",
+  "short_name": "Trinity",
+  "description": "Teaching resources for Trinity International College classrooms.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "any",
+  "background_color": "#FFF9F1",
+  "theme_color": "#B3161C",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}
