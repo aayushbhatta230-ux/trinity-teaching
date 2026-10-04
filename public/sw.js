@@ -1,7 +1,7 @@
-// Offline cache for the teaching board. The app is a single index.html, so caching it is enough;
-// files under files/ are cached the first time they are opened.
-const CACHE = 'trinity-board-v1';
-const CORE = ['./', './index.html', './icon.svg', './manifest.webmanifest'];
+// Offline cache for the teaching board. The app is a single index.html, so caching it is enough.
+// Uploaded presentations live in IndexedDB, not in this cache.
+const CACHE = 'trinity-board-v2';
+const CORE = ['./', './index.html', './icon-192.png', './icon-512.png', './manifest.webmanifest'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(CORE)).then(() => self.skipWaiting()));

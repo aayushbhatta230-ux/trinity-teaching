@@ -1,37 +1,42 @@
+/**
+ * Official Trinity International College logo artwork (src/assets/brand/).
+ * trinity-logo-original.png is the file supplied by the college; the other
+ * files are transparent cuts of it: the knot mark, the wordmark, and the full logo.
+ */
+import markSrc from '../assets/brand/trinity-mark.png';
+import wordmarkSrc from '../assets/brand/trinity-wordmark.png';
+import fullSrc from '../assets/brand/trinity-logo.png';
 import { INSTITUTION } from '../data/institution.js';
 
-/**
- * Trinity International College mark: a gold trinity knot (teardrop loop with
- * sweeping feet) crossed by a crimson arch. Drawn as SVG so it stays sharp at any size.
- */
-export function Mark({ size = 64, mono = false, className = '' }) {
-  const gold = mono ? 'currentColor' : 'var(--gold, #FEAD17)';
-  const red = mono ? 'currentColor' : 'var(--brand, #B3161C)';
-  return (
-    <svg className={`mark ${className}`} width={size} height={size} viewBox="0 0 100 100" aria-hidden="true">
-      <g fill="none" strokeLinecap="round" strokeLinejoin="round">
-        {/* gold knot: left foot → up the right side → tip → down the left side → right foot */}
-        <path
-          d="M5 88 C 30 87, 65 80, 66 58 C 67 40, 56 20, 50 5 C 44 20, 33 40, 34 58 C 35 80, 70 87, 95 88"
-          stroke={gold}
-          strokeWidth="6.5"
-        />
-        {/* crimson arch */}
-        <path d="M11 92 C 20 44, 80 44, 89 92" stroke={red} strokeWidth="7.5" />
-      </g>
-    </svg>
-  );
+const NAME = 'Trinity International College';
+
+/** The gold and crimson knot on its own. */
+export function Mark({ className = '' }) {
+  return <img className={`mark ${className}`} src={markSrc} alt="" draggable="false" />;
 }
 
-export default function Logo({ size = 'md', tagline = false, stacked = false }) {
-  return (
-    <div className={`logo logo-${size} ${stacked ? 'logo-stacked' : ''}`}>
-      <Mark className="logo-mark" />
-      <div className="logo-text">
-        <div className="logo-name">{INSTITUTION.name.toUpperCase()}</div>
-        <div className="logo-sub">{INSTITUTION.subtitle.toUpperCase()}</div>
+/** The "TRINITY / INTERNATIONAL / COLLEGE" lettering on its own. */
+export function Wordmark({ className = '' }) {
+  return <img className={`wordmark ${className}`} src={wordmarkSrc} alt="" draggable="false" />;
+}
+
+/**
+ * size="sm": mark and wordmark side by side (headers).
+ * size="lg": the full stacked logo exactly as supplied (home screen).
+ */
+export default function Logo({ size = 'sm', tagline = false }) {
+  if (size === 'lg') {
+    return (
+      <div className="logo logo-lg">
+        <img className="logo-full" src={fullSrc} alt={NAME} draggable="false" />
         {tagline && <div className="logo-tag">{INSTITUTION.tagline}</div>}
       </div>
+    );
+  }
+  return (
+    <div className="logo logo-sm" role="img" aria-label={NAME}>
+      <Mark className="logo-mark" />
+      <Wordmark className="logo-wordmark" />
     </div>
   );
 }

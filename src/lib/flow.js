@@ -13,7 +13,7 @@ export const STEPS = [
   { id: 'subject', label: 'Subject', key: 'subject' },
   { id: 'portion', label: 'Portion', key: 'portion' },
   { id: 'teacher', label: 'Teacher' },
-  { id: 'resources', label: 'Resources' },
+  { id: 'resources', label: 'Presentations' },
 ];
 const KEYS = STEPS.filter((s) => s.key).map((s) => s.key);
 

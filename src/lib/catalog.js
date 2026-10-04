@@ -3,7 +3,6 @@
  */
 import { CLASSES, SHIFTS, GROUPS, SUBJECTS, PORTIONS } from '../data/structure.js';
 import { TEACHERS, ASSIGNMENTS } from '../data/teachers.js';
-import { RESOURCES } from '../data/resources.js';
 
 export const getClass = (id) => CLASSES.find((c) => c.id === id);
 export const getShift = (id) => SHIFTS.find((s) => s.id === id);
@@ -41,17 +40,3 @@ export function resolveTeacher(sel) {
   }
   return best && getTeacher(best.teacher);
 }
-
-/** Resources for the exact selection and resolved teacher, newest first. */
-export function resourcesFor(sel, teacherId) {
-  return RESOURCES.filter(({ scope: s }) =>
-    s.teacher === teacherId &&
-    s.cls === sel.cls &&
-    s.portion === sel.portion &&
-    (!s.shift || s.shift === sel.shift) &&
-    (!s.group || s.group === sel.group) &&
-    (!s.sections || s.sections.includes(sel.section))
-  ).sort((a, b) => b.date.localeCompare(a.date));
-}
-
-export const findResource = (id) => RESOURCES.find((r) => r.id === id);

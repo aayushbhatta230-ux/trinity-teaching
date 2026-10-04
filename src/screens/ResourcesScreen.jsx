@@ -1,24 +1,23 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import FlowLayout, { contextChips } from './Layout.jsx';
 import Icon from '../components/Icon.jsx';
-import { RESOURCE_TYPES } from '../data/resources.js';
-import { getSubject, getPortion, hasPortionChoice, resolveTeacher, resourcesFor } from '../lib/catalog.js';
+import UploadDialog from '../components/UploadDialog.jsx';
+import ConfirmDialog from '../components/ConfirmDialog.jsx';
+import { getSubject, getPortion, hasPortionChoice, resolveTeacher } from '../lib/catalog.js';
+import { usePresentations, deletePresentation } from '../lib/library.js';
+import { formatDate, formatSize } from '../lib/format.js';
 
-export const formatDate = (iso) =>
-  new Date(`${iso}T00:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-export const formatSize = (mb) => (mb >= 1 ? `${mb.toFixed(1)} MB` : `${Math.round(mb * 1024)} KB`);
-
+/** Chapter-wise presentations uploaded by the assigned teacher for this class. */
 export default function ResourcesScreen({ sel, go }) {
   const teacher = resolveTeacher(sel);
-  const all = useMemo(() => (teacher ? resourcesFor(sel, teacher.id) : []), [sel, teacher]);
-  const [tab, setTab] = useState('all');
-  const tabs = [{ id: 'all', label: 'All' }, ...RESOURCE_TYPES].map((t) => ({
-    ...t, count: t.id === 'all' ? all.length : all.filter((r) => r.type === t.id).length,
-  }));
-  const shown = tab === 'all' ? all : all.filter((r) => r.type === tab);
+  const { items, loading, error, reload } = usePresentations(sel, teacher?.id);
+  const [uploading, setUploading] = useState(false);
+  const [managing, setManaging] = useState(false);
+  const [toDelete, setToDelete] = useState(null);
 
   const subject = getSubject(sel.subject);
   const title = hasPortionChoice(sel.subject) ? `${subject.label} › ${getPortion(sel.portion).label}` : subject.label;
+  const nextChapter = items.reduce((m, p) => Math.max(m, p.chapter), 0) + 1;
 
   return (
     <FlowLayout
@@ -31,40 +30,93 @@ export default function ResourcesScreen({ sel, go }) {
         </div>
       )}
     >
-      <div className="tabs" role="tablist">
-        {tabs.filter((t) => t.id === 'all' || t.count > 0).map((t) => (
-          <button key={t.id} role="tab" aria-selected={tab === t.id} className={`tab ${tab === t.id ? 'is-active' : ''}`} onClick={() => setTab(t.id)}>
-            {t.label}
-            <span className="tab-count">{t.count}</span>
-          </button>
-        ))}
-      </div>
-      {shown.length ? (
+      {teacher && (
+        <div className="library-bar">
+          <h2 className="library-heading">
+            Presentations <span className="library-count">{items.length}</span>
+          </h2>
+          <div className="library-actions">
+            {items.length > 0 && (
+              <button className={`btn-secondary ${managing ? 'is-on' : ''}`} onClick={() => setManaging(!managing)}>
+                <Icon name={managing ? 'check' : 'settings'} size={34} />
+                <span>{managing ? 'Done' : 'Manage'}</span>
+              </button>
+            )}
+            <button className="btn-add" onClick={() => setUploading(true)}>
+              <Icon name="upload" size={38} stroke={2} />
+              <span>Add presentation</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {loading ? null : error ? (
+        <div className="empty">
+          <Icon name="alert" size={96} />
+          <h2>This board’s storage is not available</h2>
+          <p>Open the app in Chrome (not in a private window) to upload and view presentations.</p>
+        </div>
+      ) : items.length ? (
         <div className="files">
-          {shown.map((r) => (
-            <button key={r.id} className="file" onClick={() => go.open(r.id)}>
-              <span className={`file-icon type-${r.type}`}>
-                <Icon name={r.type} size={52} stroke={1.6} />
-                <span className="file-ext">{r.ext.toUpperCase()}</span>
+          {items.map((p) => (
+            <button
+              key={p.id}
+              className={`file ${managing ? 'is-managing' : ''}`}
+              onClick={() => (managing ? setToDelete(p) : go.open(p.id))}
+            >
+              <span className="chapter-badge">
+                <span className="chapter-badge-label">Chapter</span>
+                <span className="chapter-badge-num">{p.chapter}</span>
               </span>
               <span className="file-main">
-                <span className="file-title">{r.title}</span>
-                <span className="file-desc">{r.description}</span>
+                <span className="file-title">{p.title}</span>
+                <span className="file-desc">
+                  {p.pages} {p.pages === 1 ? 'slide' : 'slides'} · {formatSize(p.size)}
+                  {p.sections ? ` · Section ${p.sections.join(', ')} only` : ''}
+                </span>
               </span>
               <span className="file-meta">
-                <span>{formatDate(r.date)}</span>
-                <span>{formatSize(r.sizeMB)}</span>
+                <span>Uploaded</span>
+                <span>{formatDate(p.uploadedAt)}</span>
               </span>
-              <Icon name="next" size={44} className="file-chevron" />
+              <Icon name={managing ? 'trash' : 'next'} size={44} className={managing ? 'file-delete' : 'file-chevron'} />
             </button>
           ))}
         </div>
+      ) : teacher ? (
+        <div className="empty">
+          <Icon name="presentation" size={110} stroke={1.4} />
+          <h2>No presentations uploaded yet</h2>
+          <p>Save your chapter slides as PDF in PowerPoint, then tap <b>Add presentation</b>.</p>
+        </div>
       ) : (
         <div className="empty">
-          <Icon name="other" size={96} />
-          <h2>No resources uploaded yet</h2>
-          <p>Nothing has been shared for this class and portion.</p>
+          <Icon name="alert" size={96} />
+          <h2>No teacher is assigned to this class yet</h2>
         </div>
+      )}
+
+      {uploading && (
+        <UploadDialog
+          sel={sel}
+          teacher={teacher}
+          defaultChapter={nextChapter}
+          onClose={() => setUploading(false)}
+          onSaved={() => { setUploading(false); reload(); }}
+        />
+      )}
+      {toDelete && (
+        <ConfirmDialog
+          title="Remove this presentation?"
+          message={`Chapter ${toDelete.chapter} – ${toDelete.title} will be removed from this board.`}
+          confirmLabel="Remove"
+          onCancel={() => setToDelete(null)}
+          onConfirm={async () => {
+            await deletePresentation(toDelete.id);
+            setToDelete(null);
+            reload();
+          }}
+        />
       )}
     </FlowLayout>
   );

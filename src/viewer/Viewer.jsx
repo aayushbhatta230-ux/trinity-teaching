@@ -1,20 +1,19 @@
 /**
- * Read-only file viewer. Deliberately has no editing, pen, annotation or highlight tools —
- * only page navigation, zoom and fullscreen.
+ * Read-only presentation viewer for uploaded chapter PDFs. Deliberately has no editing,
+ * pen, annotation or highlight tools — only page navigation, zoom and full screen.
  */
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react';
 import Icon from '../components/Icon.jsx';
 import { BackButton, Clock, useRemPx } from '../components/Chrome.jsx';
-import { findResource, getTeacher } from '../lib/catalog.js';
-import { buildPages } from '../lib/pages.js';
-import Page, { PAGE_SIZE, ScaledPage } from './Pages.jsx';
-import VideoPlayer from './VideoPlayer.jsx';
-import { formatDate, formatSize } from '../screens/ResourcesScreen.jsx';
+import { getTeacher, resolveTeacher } from '../lib/catalog.js';
+import { getPresentation } from '../lib/library.js';
+import { openPdf, renderPage } from '../lib/pdf.js';
+import { formatDate, formatSize } from '../lib/format.js';
 
 const ZOOMS = [1, 1.25, 1.5, 2, 2.5, 3];
 
-/** Fullscreen state that follows the browser (Esc / board's own controls). */
-export function useFullscreen() {
+/** Fullscreen state that follows the browser (Esc / the board's own controls). */
+function useFullscreen() {
   const [on, setOn] = useState(false);
   useEffect(() => {
     const sync = () => { if (!document.fullscreenElement) setOn(false); };
@@ -33,61 +32,88 @@ export function useFullscreen() {
   return [on, toggle];
 }
 
-export function ViewerHeader({ r, go }) {
-  const teacher = getTeacher(r.scope.teacher);
+function Unavailable({ go, title, message }) {
   return (
-    <header className="viewer-header">
-      <BackButton onClick={go.resources} label="Resources" />
-      <div className="viewer-title">
-        <div className="viewer-name">{r.title}<span className="viewer-ext">.{r.ext}</span></div>
-        <div className="viewer-meta">{teacher?.name} · {formatDate(r.date)} · {formatSize(r.sizeMB)}</div>
+    <div className="screen viewer">
+      <div className="empty">
+        <Icon name="alert" size={96} />
+        <h2>{title}</h2>
+        {message && <p className="viewer-empty-msg">{message}</p>}
+        <button className="btn-primary" onClick={go.resources}>Back to Presentations</button>
       </div>
-      <Clock />
-      <button className="btn-home" onClick={go.home} aria-label="Home"><Icon name="home" size={44} /></button>
-    </header>
+    </div>
   );
 }
 
 export default function Viewer({ sel, id, page, go }) {
-  const r = findResource(id);
-  if (!r || r.scope.cls !== sel.cls || r.scope.portion !== sel.portion) {
-    return (
-      <div className="screen viewer">
-        <div className="empty">
-          <Icon name="alert" size={96} />
-          <h2>This file is not available</h2>
-          <button className="btn-primary" onClick={go.resources}>Back to Resources</button>
-        </div>
-      </div>
-    );
-  }
-  if (r.type === 'video') return <VideoPlayer r={r} go={go} />;
-  return <DocViewer key={r.id} r={r} page={page} go={go} />;
+  const [state, setState] = useState({ status: 'loading' });
+
+  useEffect(() => {
+    let doc;
+    let cancelled = false;
+    (async () => {
+      try {
+        const rec = await getPresentation(id);
+        const teacher = resolveTeacher(sel);
+        if (!rec || rec.cls !== sel.cls || rec.portion !== sel.portion || rec.teacher !== teacher?.id) {
+          if (!cancelled) setState({ status: 'missing' });
+          return;
+        }
+        doc = await openPdf(rec.file);
+        if (cancelled) { doc.destroy(); return; }
+        const first = await doc.getPage(1);
+        const vp = first.getViewport({ scale: 1 });
+        setState({ status: 'ready', rec, doc, aspect: vp.width / vp.height });
+      } catch {
+        if (!cancelled) setState({ status: 'error' });
+      }
+    })();
+    return () => { cancelled = true; doc?.destroy(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
+  if (state.status === 'loading') return <div className="screen viewer"><div className="viewer-loading">Opening presentation…</div></div>;
+  if (state.status === 'missing') return <Unavailable go={go} title="This presentation is not on this board" />;
+  if (state.status === 'error') return <Unavailable go={go} title="This presentation could not be opened" message="The PDF may be damaged. Remove it and upload it again." />;
+  return <PdfViewer {...state} page={page} go={go} />;
 }
 
-function DocViewer({ r, page, go }) {
-  const pages = useMemo(() => buildPages(r), [r]);
-  const total = pages.length;
-  const p = Math.min(Math.max(page, 1), total);
-  const cur = pages[p - 1];
+/** A page thumbnail that renders only once it scrolls into view. */
+function Thumb({ doc, number, width, aspect }) {
+  const ref = useRef(null);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setVisible(true); io.disconnect(); } }, { rootMargin: '300px' });
+    io.observe(ref.current);
+    return () => io.disconnect();
+  }, []);
+  useEffect(() => {
+    if (!visible) return undefined;
+    let task;
+    let live = true;
+    doc.getPage(number).then((pg) => { if (live) { task = renderPage(pg, ref.current, width); task.promise.catch(() => {}); } });
+    return () => { live = false; task?.cancel(); };
+  }, [visible, doc, number, width]);
+  return <canvas ref={ref} className="thumb-canvas" style={{ width, height: width / aspect }} />;
+}
 
+function PdfViewer({ rec, doc, aspect, page, go }) {
+  const total = doc.numPages;
+  const p = Math.min(Math.max(page, 1), total);
   const [zoom, setZoom] = useState(1);
   const [present, togglePresent] = useFullscreen();
   const [grid, setGrid] = useState(false);
-  const rem = useRemPx() / 16; // thumbnails follow the screen scale
+  const rem = useRemPx() / 16;
 
   const goto = useCallback((k) => {
     const n = Math.min(Math.max(k, 1), total);
-    if (n !== p) { go.setPage(r.id, n); setZoom(1); }
-  }, [p, total, go, r.id]);
+    if (n !== p) { go.setPage(rec.id, n); setZoom(1); }
+  }, [p, total, go, rec.id]);
   const zoomBy = useCallback((dir) => {
-    setZoom((z) => {
-      const i = ZOOMS.indexOf(z) + dir;
-      return ZOOMS[Math.min(Math.max(i, 0), ZOOMS.length - 1)];
-    });
+    setZoom((z) => ZOOMS[Math.min(Math.max(ZOOMS.indexOf(z) + dir, 0), ZOOMS.length - 1)]);
   }, []);
 
-  // Keyboard & presentation clickers.
+  // Keyboard and presentation clickers.
   useEffect(() => {
     const on = (e) => {
       if (['ArrowRight', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); goto(p + 1); }
@@ -104,18 +130,32 @@ function DocViewer({ r, page, go }) {
     return () => window.removeEventListener('keydown', on);
   }, [goto, p, total, zoomBy, togglePresent]);
 
-  // Fit-to-area sizing.
+  // Fit the page to the available area.
   const areaRef = useRef(null);
-  const [area, setArea] = useState({ w: 1400, h: 800 });
+  const [area, setArea] = useState({ w: 0, h: 0 });
   useLayoutEffect(() => {
-    const el = areaRef.current;
     const ro = new ResizeObserver(([e]) => setArea({ w: e.contentRect.width, h: e.contentRect.height }));
-    ro.observe(el);
+    ro.observe(areaRef.current);
     return () => ro.disconnect();
   }, []);
-  const [bw, bh] = PAGE_SIZE[cur.orient];
-  const fit = Math.min((area.w - 48) / bw, (area.h - 48) / bh);
-  const scale = fit * zoom;
+  const fitW = Math.max(0, Math.min(area.w - 24, (area.h - 24) * aspect));
+  const cssW = Math.round(fitW * zoom);
+
+  // Render the current page (re-render on page, size or zoom change).
+  const canvasRef = useRef(null);
+  const [rendered, setRendered] = useState(false);
+  useEffect(() => {
+    if (!cssW) return undefined;
+    let task;
+    let live = true;
+    setRendered(false);
+    doc.getPage(p).then((pg) => {
+      if (!live) return;
+      task = renderPage(pg, canvasRef.current, cssW);
+      task.promise.then(() => live && setRendered(true)).catch(() => {});
+    });
+    return () => { live = false; task?.cancel(); };
+  }, [doc, p, cssW]);
 
   // Keep the view centred when zooming.
   useLayoutEffect(() => {
@@ -124,40 +164,46 @@ function DocViewer({ r, page, go }) {
     el.scrollTop = zoom === 1 ? 0 : (el.scrollHeight - el.clientHeight) / 2;
   }, [zoom, p]);
 
-  // Swipe to turn pages (only at fit zoom), double-tap to zoom.
+  // Swipe to turn pages (at fit zoom); double-tap or double-click to zoom.
   const gesture = useRef({});
-  const onPointerDown = (e) => { gesture.current = { ...gesture.current, x: e.clientX, y: e.clientY, t: Date.now(), type: e.pointerType }; };
+  const onPointerDown = (e) => { gesture.current = { ...gesture.current, x: e.clientX, y: e.clientY, type: e.pointerType }; };
   const onPointerUp = (e) => {
     const g = gesture.current;
     const dx = e.clientX - g.x;
     const dy = e.clientY - g.y;
-    if (zoom === 1 && Math.abs(dx) > 120 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-      goto(dx < 0 ? p + 1 : p - 1);
-      return;
-    }
-    if (Math.abs(dx) < 10 && Math.abs(dy) < 10) {
+    if (zoom === 1 && Math.abs(dx) > 120 && Math.abs(dx) > Math.abs(dy) * 1.5) { goto(dx < 0 ? p + 1 : p - 1); return; }
+    if (e.pointerType === 'touch' && Math.abs(dx) < 10 && Math.abs(dy) < 10) {
       const now = Date.now();
-      if (e.pointerType === 'touch' && now - (g.lastTap ?? 0) < 320) { setZoom((z) => (z === 1 ? 2 : 1)); g.lastTap = 0; }
-      else gesture.current.lastTap = now;
+      if (now - (g.lastTap ?? 0) < 320) { setZoom((z) => (z === 1 ? 2 : 1)); g.lastTap = 0; } else g.lastTap = now;
     }
   };
 
-  // Keep the active thumbnail visible.
   const thumbsRef = useRef(null);
-  useEffect(() => {
-    thumbsRef.current?.querySelector('.is-active')?.scrollIntoView({ block: 'nearest' });
-  }, [p]);
+  useEffect(() => { thumbsRef.current?.querySelector('.is-active')?.scrollIntoView({ block: 'nearest' }); }, [p]);
+
+  const pagesArr = Array.from({ length: total }, (_, i) => i + 1);
+  const teacher = getTeacher(rec.teacher);
 
   return (
     <div className={`screen viewer ${present ? 'is-present' : ''}`}>
-      {!present && <ViewerHeader r={r} go={go} />}
+      {!present && (
+        <header className="viewer-header">
+          <BackButton onClick={go.resources} label="Presentations" />
+          <div className="viewer-title">
+            <div className="viewer-name"><span className="viewer-chapter">Chapter {rec.chapter}</span>{rec.title}</div>
+            <div className="viewer-meta">{teacher?.name} · {total} slides · {formatSize(rec.size)} · uploaded {formatDate(rec.uploadedAt)}</div>
+          </div>
+          <Clock />
+          <button className="btn-home" onClick={go.home} aria-label="Home"><Icon name="home" size={40} /></button>
+        </header>
+      )}
       <div className="viewer-body">
         {!present && total > 1 && (
           <aside className="thumbs" ref={thumbsRef}>
-            {pages.map((pg, i) => (
-              <button key={i} className={`thumb ${i + 1 === p ? 'is-active' : ''}`} onClick={() => goto(i + 1)}>
-                <span className="thumb-num">{i + 1}</span>
-                <ScaledPage page={pg} number={i + 1} total={total} width={(pg.orient === 'landscape' ? 200 : 150) * rem} />
+            {pagesArr.map((n) => (
+              <button key={n} className={`thumb ${n === p ? 'is-active' : ''}`} onClick={() => goto(n)}>
+                <span className="thumb-num">{n}</span>
+                <Thumb doc={doc} number={n} aspect={aspect} width={Math.round((aspect >= 1 ? 190 : 140) * rem)} />
               </button>
             ))}
           </aside>
@@ -166,13 +212,11 @@ function DocViewer({ r, page, go }) {
           className={`canvas ${zoom > 1 ? 'is-zoomed' : ''}`}
           ref={areaRef}
           onPointerDown={onPointerDown}
-          onDoubleClick={() => { if (gesture.current.type !== 'touch') setZoom((z) => (z === 1 ? 2 : 1)); }}
           onPointerUp={onPointerUp}
+          onDoubleClick={() => { if (gesture.current.type !== 'touch') setZoom((z) => (z === 1 ? 2 : 1)); }}
         >
-          <div className="canvas-page" style={{ width: bw * scale, height: bh * scale }}>
-            <div className="page-native" style={{ width: bw, height: bh, transform: `scale(${scale})` }}>
-              <Page page={cur} number={p} total={total} />
-            </div>
+          <div className="canvas-page" style={{ width: cssW, height: cssW / aspect }}>
+            <canvas ref={canvasRef} className={rendered ? '' : 'is-rendering'} />
           </div>
         </div>
       </div>
@@ -191,15 +235,9 @@ function DocViewer({ r, page, go }) {
           </button>
         </div>
         <div className="controls-group">
-          <button className="ctl" onClick={() => zoomBy(-1)} disabled={zoom <= ZOOMS[0]} aria-label="Zoom out">
-            <Icon name="zoomOut" size={44} />
-          </button>
-          <button className="ctl ctl-zoom" onClick={() => setZoom(1)} aria-label="Fit to screen">
-            {zoom === 1 ? 'Fit' : `${Math.round(zoom * 100)}%`}
-          </button>
-          <button className="ctl" onClick={() => zoomBy(1)} disabled={zoom >= ZOOMS[ZOOMS.length - 1]} aria-label="Zoom in">
-            <Icon name="zoomIn" size={44} />
-          </button>
+          <button className="ctl" onClick={() => zoomBy(-1)} disabled={zoom <= ZOOMS[0]} aria-label="Zoom out"><Icon name="zoomOut" size={44} /></button>
+          <button className="ctl ctl-zoom" onClick={() => setZoom(1)} aria-label="Fit to screen">{zoom === 1 ? 'Fit' : `${Math.round(zoom * 100)}%`}</button>
+          <button className="ctl" onClick={() => zoomBy(1)} disabled={zoom >= ZOOMS[ZOOMS.length - 1]} aria-label="Zoom in"><Icon name="zoomIn" size={44} /></button>
         </div>
         <div className="controls-group">
           <button className="ctl ctl-wide" onClick={togglePresent}>
@@ -213,14 +251,14 @@ function DocViewer({ r, page, go }) {
         <div className="overlay" onClick={() => setGrid(false)}>
           <div className="overlay-panel" onClick={(e) => e.stopPropagation()}>
             <div className="overlay-head">
-              <h2>Go to page</h2>
+              <h2>Go to slide</h2>
               <button className="btn-icon" onClick={() => setGrid(false)} aria-label="Close"><Icon name="close" size={48} /></button>
             </div>
-            <div className={`page-grid ${cur.orient}`}>
-              {pages.map((pg, i) => (
-                <button key={i} className={`grid-item ${i + 1 === p ? 'is-active' : ''}`} onClick={() => { goto(i + 1); setGrid(false); }}>
-                  <ScaledPage page={pg} number={i + 1} total={total} width={(pg.orient === 'landscape' ? 300 : 220) * rem} />
-                  <span>{i + 1}</span>
+            <div className="page-grid">
+              {pagesArr.map((n) => (
+                <button key={n} className={`grid-item ${n === p ? 'is-active' : ''}`} onClick={() => { goto(n); setGrid(false); }}>
+                  <Thumb doc={doc} number={n} aspect={aspect} width={Math.round((aspect >= 1 ? 290 : 210) * rem)} />
+                  <span>{n}</span>
                 </button>
               ))}
             </div>

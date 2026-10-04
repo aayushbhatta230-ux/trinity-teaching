@@ -1,12 +1,13 @@
 import FlowLayout, { contextChips } from './Layout.jsx';
 import Icon from '../components/Icon.jsx';
-import { getSubject, getPortion, hasPortionChoice, resolveTeacher, resourcesFor } from '../lib/catalog.js';
+import { getSubject, getPortion, hasPortionChoice, resolveTeacher } from '../lib/catalog.js';
+import { usePresentations } from '../lib/library.js';
 
 export default function TeacherScreen({ sel, go }) {
   const teacher = resolveTeacher(sel);
   const subject = getSubject(sel.subject);
   const portion = getPortion(sel.portion);
-  const count = teacher ? resourcesFor(sel, teacher.id).length : 0;
+  const { items, loading } = usePresentations(sel, teacher?.id);
 
   return (
     <FlowLayout sel={sel} step="teacher" go={go} title="Teacher Assigned" chips={contextChips(sel)}>
@@ -22,11 +23,11 @@ export default function TeacherScreen({ sel, go }) {
           </div>
           <div className="teacher-note">
             <Icon name="shield" size={40} />
-            <span>Assigned automatically from the teaching schedule. Only materials for this portion and section are shown.</span>
+            <span>Assigned automatically from the teaching schedule. Only this teacher’s presentations for this class are shown.</span>
           </div>
           <button className="btn-primary btn-wide" onClick={go.resources}>
-            <span>Open Resources</span>
-            <span className="btn-count">{count}</span>
+            <span>Open Presentations</span>
+            {!loading && <span className="btn-count">{items.length}</span>}
             <Icon name="arrow" size={48} stroke={2} />
           </button>
         </div>

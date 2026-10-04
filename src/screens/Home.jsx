@@ -13,7 +13,7 @@ export default function Home({ onStart }) {
       </div>
       <div className="home-clock"><Clock /></div>
       <main className="home-panel">
-        <Logo size="lg" tagline stacked />
+        <Logo size="lg" tagline />
         <div className="home-copy">
           <h1>{INSTITUTION.appTitle}</h1>
           <p>{INSTITUTION.appSubtitle}</p>
