@@ -8,6 +8,10 @@ import { viteSingleFile } from 'vite-plugin-singlefile';
 export default defineConfig({
   plugins: [react(), viteSingleFile({ removeViteModuleLoader: true })],
   base: './',
+  // Keep file paths as given instead of resolving them to their "real" location. Windows
+  // redirects some AppData folders (e.g. for packaged apps) to a path the dev server
+  // cannot read, which made the dev server serve untransformed source.
+  resolve: { preserveSymlinks: true },
   build: {
     target: ['chrome80', 'edge80', 'safari13'],
     assetsInlineLimit: 100000000,
