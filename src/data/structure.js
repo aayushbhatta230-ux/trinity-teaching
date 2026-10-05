@@ -45,7 +45,7 @@ export const GROUPS = [
  * Subjects. A subject with a single portion skips the "Select Portion" step.
  */
 export const SUBJECTS = {
-  mathematics: { label: 'Mathematics', icon: 'sigma', portions: ['math.analytical', 'math.calculus'] },
+  mathematics: { label: 'Mathematics', icon: 'sigma', portions: ['math.algebra', 'math.analytical', 'math.calculus'] },
   physics: { label: 'Physics', icon: 'atom', portions: ['phy.mechanics', 'phy.electricity', 'phy.thermo'] },
   chemistry: { label: 'Chemistry', icon: 'flask', portions: ['chem.physical', 'chem.organic', 'chem.inorganic'] },
   biology: { label: 'Biology', icon: 'leaf', portions: ['bio.botany', 'bio.zoology'] },
@@ -55,6 +55,7 @@ export const SUBJECTS = {
 };
 
 export const PORTIONS = {
+  'math.algebra': { label: 'Algebra', detail: 'Sets, functions, matrices & sequences', icon: 'variable' },
   'math.analytical': { label: 'Analytical', detail: 'Coordinate & analytic geometry', icon: 'triangle' },
   'math.calculus': { label: 'Calculus', detail: 'Limits, derivatives & integrals', icon: 'sigma' },
   'phy.mechanics': { label: 'Mechanics', detail: 'Motion, force & energy', icon: 'cog' },

@@ -9,11 +9,15 @@
  * to specific classes / shifts / groups / sections. For a given selection,
  * every matching rule is collected and the MOST SPECIFIC one wins
  * (the one with the most `where` conditions). Ties go to the rule listed first.
+ *
+ * Example — split one portion between two teachers by section:
+ *   { portion: 'phy.mechanics', teacher: 'T-PM',  where: { sections: ['A', 'B', 'C', 'D'] } },
+ *   { portion: 'phy.mechanics', teacher: 'T-PM2', where: { sections: ['E', 'F', 'G', 'H'] } },
  */
 
 export const TEACHERS = {
-  'T-MA1': { name: 'Mathematics Teacher 1', subject: 'mathematics' },
-  'T-MA2': { name: 'Mathematics Teacher 2', subject: 'mathematics' },
+  'T-MAL': { name: 'Mathematics Teacher 1', subject: 'mathematics' },
+  'T-MA1': { name: 'Mathematics Teacher 2', subject: 'mathematics' },
   'T-MC':  { name: 'Mathematics Teacher 3', subject: 'mathematics' },
   'T-PM':  { name: 'Physics Teacher 1', subject: 'physics' },
   'T-PE':  { name: 'Physics Teacher 2', subject: 'physics' },
@@ -29,9 +33,9 @@ export const TEACHERS = {
 };
 
 export const ASSIGNMENTS = [
-  // Mathematics — Analytical is split between two teachers by section.
-  { portion: 'math.analytical', teacher: 'T-MA1', where: { sections: ['A', 'B', 'C', 'D'] } },
-  { portion: 'math.analytical', teacher: 'T-MA2', where: { sections: ['E', 'F', 'G', 'H'] } },
+  // Mathematics
+  { portion: 'math.algebra', teacher: 'T-MAL' },
+  { portion: 'math.analytical', teacher: 'T-MA1' },
   { portion: 'math.calculus', teacher: 'T-MC' },
 
   // Physics

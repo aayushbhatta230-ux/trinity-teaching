@@ -126,9 +126,10 @@ Teacher names are placeholders, such as "Physics Teacher 1", until the academic 
 Each rule in `ASSIGNMENTS` maps a portion to a teacher, and `where` can narrow a rule:
 
 ```js
-{ portion: 'math.analytical', teacher: 'T-MA1', where: { sections: ['A', 'B', 'C', 'D'] } },
-{ portion: 'math.analytical', teacher: 'T-MA2', where: { sections: ['E', 'F', 'G', 'H'] } },
-{ portion: 'phy.mechanics',   teacher: 'T-PM' },
+{ portion: 'math.algebra',  teacher: 'T-MAL' },
+// Split one portion between two teachers by section:
+{ portion: 'phy.mechanics', teacher: 'T-PM',  where: { sections: ['A', 'B', 'C', 'D'] } },
+{ portion: 'phy.mechanics', teacher: 'T-PM2', where: { sections: ['E', 'F', 'G', 'H'] } },
 ```
 
 `where` can use `cls`, `shift`, `group` and `sections`. If several rules match, the most specific one wins. See `resolveTeacher()` in `src/lib/catalog.js`.
