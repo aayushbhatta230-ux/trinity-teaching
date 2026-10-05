@@ -55,10 +55,10 @@ export default function Viewer({ sel, id, page, go }) {
     let cancelled = false;
     (async () => {
       try {
-        const rec = await getPresentation(id);
+        // Only this classroom's own storage is opened, so other classrooms' files cannot load.
+        const rec = await getPresentation(sel, id);
         const teacher = resolveTeacher(sel);
-        const visibleHere = rec && rec.shift === sel.shift && rec.group === sel.group && (!rec.sections || rec.sections.includes(sel.section));
-        if (!rec || !visibleHere || rec.cls !== sel.cls || rec.portion !== sel.portion || rec.teacher !== teacher?.id) {
+        if (!rec || rec.cls !== sel.cls || rec.portion !== sel.portion || rec.teacher !== teacher?.id) {
           if (!cancelled) setState({ status: 'missing' });
           return;
         }
@@ -76,7 +76,7 @@ export default function Viewer({ sel, id, page, go }) {
   }, [id]);
 
   if (state.status === 'loading') return <div className="screen viewer"><div className="viewer-loading">Opening presentation…</div></div>;
-  if (state.status === 'missing') return <Unavailable go={go} title="This presentation is not on this board" />;
+  if (state.status === 'missing') return <Unavailable go={go} title="This presentation belongs to another classroom" />;
   if (state.status === 'error') return <Unavailable go={go} title="This presentation could not be opened" message="The PDF may be damaged. Remove it and upload it again." />;
   return <PdfViewer {...state} page={page} go={go} />;
 }

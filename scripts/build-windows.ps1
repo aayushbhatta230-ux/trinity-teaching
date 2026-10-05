@@ -20,12 +20,18 @@ node -e "const fs=require('fs');const f='desktop/package.json';const p=JSON.pars
 Write-Host '3/3  Packaging the installer...'
 # Antivirus scanning of the freshly built installer can make one step fail with
 # "spawn UNKNOWN"; a second attempt normally succeeds.
+# Packaging happens in a working folder outside the project: when the project lives under a
+# redirected AppData folder, renaming the freshly unpacked app there fails with EPERM.
+$work = Join-Path $env:LOCALAPPDATA 'TrinityBuild\windows-out'
+Remove-Item -Recurse -Force $work -ErrorAction SilentlyContinue
 foreach ($attempt in 1, 2) {
-  npx electron-builder --win --x64 --config electron-builder.yml
+  npx electron-builder --win --x64 --config electron-builder.yml "-c.directories.output=$work"
   if ($LASTEXITCODE -eq 0) { break }
   if ($attempt -eq 2) { throw 'electron-builder failed' }
   Write-Host 'Packaging failed, retrying once...'
   Start-Sleep -Seconds 3
 }
+New-Item -ItemType Directory -Force release\windows | Out-Null
+Copy-Item (Join-Path $work "TrinityTeaching-Setup-$version.exe") release\windows\ -Force
 
 Write-Host "Done: release\windows\TrinityTeaching-Setup-$version.exe"

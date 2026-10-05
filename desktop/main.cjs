@@ -1,12 +1,17 @@
 // Trinity Teaching — Windows desktop app (Electron).
-// Loads the same single-file app used in the Android build from app/index.html.
+// Loads the same single-file app used in the Android build: app/index.html, or a newer
+// verified bundle downloaded by the in-app updater (see updater.cjs).
 const { app, BrowserWindow, Menu, ipcMain } = require('electron');
 const path = require('node:path');
+// Test hook: keep app data in a separate folder (never set in normal use).
+if (process.env.TRINITY_USER_DATA) app.setPath('userData', process.env.TRINITY_USER_DATA);
+const { createUpdater } = require('./updater.cjs');
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
   let win;
+  const updater = createUpdater(() => win);
 
   const createWindow = () => {
     win = new BrowserWindow({
@@ -30,7 +35,7 @@ if (!app.requestSingleInstanceLock()) {
     });
     Menu.setApplicationMenu(null);
     win.once('ready-to-show', () => win.show());
-    win.loadFile(path.join(__dirname, 'app', 'index.html'));
+    updater.start();
 
     // Stay inside the app: no external pages, no pop-up windows.
     win.webContents.on('will-navigate', (e, url) => {
@@ -49,6 +54,10 @@ if (!app.requestSingleInstanceLock()) {
 
   ipcMain.on('trinity:quit', () => app.quit());
   ipcMain.on('trinity:toggle-fullscreen', () => win && win.setFullScreen(!win.isFullScreen()));
+  ipcMain.on('trinity:app-ready', () => updater.ready());
+  ipcMain.handle('trinity:shell-version', () => app.getVersion());
+  ipcMain.handle('trinity:check-updates', () => updater.check());
+  ipcMain.handle('trinity:apply-update', () => updater.apply());
 
   app.on('second-instance', () => {
     if (!win) return;

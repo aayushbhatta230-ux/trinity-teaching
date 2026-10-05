@@ -21,3 +21,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <App />
   </React.StrictMode>
 );
+
+// Windows app: confirm this version started, so the updater keeps it.
+window.trinityDesktop?.appReady?.();

@@ -9,6 +9,7 @@ directories:
 files:
   - main.cjs
   - preload.cjs
+  - updater.cjs
   - app/**
   - build/icon.png
   - package.json

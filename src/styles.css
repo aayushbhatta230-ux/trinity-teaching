@@ -350,6 +350,11 @@ h1, h2, h3, p { margin: 0; }
 .confirm-body svg { color: var(--brand); }
 .confirm-body h2 { font-size: 2.2rem; }
 .confirm-body p { font-size: 1.5rem; color: var(--ink-2); }
+.room-note {
+  display: flex; align-items: center; gap: 0.8rem; font-size: 1.4rem; color: var(--ink-2);
+  background: var(--gold-50); border: 0.0625rem solid #f6dca6; border-radius: 1rem; padding: 1rem 1.25rem;
+}
+.room-note svg { flex: none; color: var(--gold-600); }
 .dialog-error {
   display: flex; align-items: center; gap: 0.8rem; font-size: 1.4rem; font-weight: 500; color: var(--brand-800);
   background: var(--brand-50); border: 0.0625rem solid var(--brand-100); border-radius: 1rem; padding: 1rem 1.25rem;
@@ -409,6 +414,23 @@ h1, h2, h3, p { margin: 0; }
   background: rgba(255, 255, 255, 0.85); border: 0.125rem solid var(--brand-100);
 }
 .btn-exit:active { background: var(--brand-50); }
+.btn-update {
+  min-height: 4.25rem; padding: 0 1.5rem; border-radius: 2.2rem;
+  display: inline-flex; align-items: center; gap: 0.6rem;
+  font-size: 1.4rem; font-weight: 600; color: #fff; background: var(--brand);
+  border-bottom: 0.25rem solid var(--gold); box-shadow: var(--shadow);
+}
+.btn-update:active { background: var(--brand-700); }
+.home-version {
+  position: absolute; left: 3.75rem; bottom: 6.75rem; z-index: 3;
+  display: flex; align-items: center; gap: 1rem; font-size: 1.15rem; color: var(--muted);
+}
+.home-version-note { color: var(--brand-700); font-weight: 600; }
+.btn-link {
+  min-height: 3rem; padding: 0 0.9rem; border-radius: 1.5rem; font-size: 1.15rem; font-weight: 600;
+  color: var(--brand-700); background: rgba(255, 255, 255, 0.7); border: 0.0625rem solid var(--brand-100);
+}
+.btn-link:disabled { color: var(--muted); }
 .home-clock .clock-time { font-size: 2.75rem; }
 .home-clock .clock-date { font-size: 1.35rem; }
 .home-panel {
@@ -551,6 +573,8 @@ h1, h2, h3, p { margin: 0; }
 
 /* Phones */
 @media (max-width: 700px) {
+  .home-version { left: 1rem; right: 1rem; bottom: 5rem; justify-content: center; flex-wrap: wrap; }
+  .btn-update span { font-size: 1.1rem; }
   .btn-secondary span { display: none; }
   .btn-add, .btn-secondary { min-height: 4.25rem; padding: 0 1.1rem; font-size: 1.35rem; }
   .library-heading { font-size: 1.7rem; }

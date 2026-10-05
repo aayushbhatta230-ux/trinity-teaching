@@ -3,7 +3,7 @@ import Icon from './Icon.jsx';
 import { addPresentation } from '../lib/library.js';
 import { openPdf, isPdf } from '../lib/pdf.js';
 import { formatSize, titleFromFileName } from '../lib/format.js';
-import { getClass, getPortion, getSubject, getShift, getGroup, hasPortionChoice, sectionsFor } from '../lib/catalog.js';
+import { getClass, getPortion, getSubject, hasPortionChoice } from '../lib/catalog.js';
 import { sectionCode } from '../data/structure.js';
 import { useBackHandler } from '../lib/native.js';
 
@@ -16,7 +16,6 @@ export default function UploadDialog({ sel, teacher, defaultChapter, onClose, on
   const [pages, setPages] = useState(0);
   const [title, setTitle] = useState('');
   const [chapter, setChapter] = useState(Math.min(defaultChapter, MAX_CHAPTER));
-  const [scope, setScope] = useState('all');
   const [status, setStatus] = useState({ busy: false, error: '' });
 
   const subject = getSubject(sel.subject);
@@ -51,13 +50,9 @@ export default function UploadDialog({ sel, teacher, defaultChapter, onClose, on
     setStatus({ busy: true, error: '' });
     try {
       await addPresentation(
+        sel,
         {
           teacher: teacher.id,
-          cls: sel.cls,
-          portion: sel.portion,
-          shift: sel.shift,
-          group: sel.group,
-          sections: scope === 'section' ? [sel.section] : null,
           chapter,
           title: title.trim(),
           pages,
@@ -81,7 +76,7 @@ export default function UploadDialog({ sel, teacher, defaultChapter, onClose, on
         <div className="dialog-head">
           <div>
             <h2 id="upload-title">Add presentation</h2>
-            <p>{where} · {teacher.name}</p>
+            <p>{sectionCode(sel.cls, sel.shift, sel.section)} · {where} · {teacher.name}</p>
           </div>
           <button className="btn-icon" onClick={onClose} aria-label="Close"><Icon name="close" size={44} /></button>
         </div>
@@ -128,16 +123,9 @@ export default function UploadDialog({ sel, teacher, defaultChapter, onClose, on
             </label>
           </div>
 
-          <div className="field">
-            <span className="field-label">Show to</span>
-            <div className="segmented">
-              <button className={scope === 'all' ? 'is-active' : ''} onClick={() => setScope('all')}>
-                All {getShift(sel.shift).label} {getGroup(sel.group).label} sections ({sectionCode(sel.cls, sel.shift, sectionsFor(sel)[0])} – {sectionCode(sel.cls, sel.shift, sectionsFor(sel).slice(-1)[0])})
-              </button>
-              <button className={scope === 'section' ? 'is-active' : ''} onClick={() => setScope('section')}>
-                Only {sectionCode(sel.cls, sel.shift, sel.section)}
-              </button>
-            </div>
+          <div className="room-note">
+            <Icon name="shield" size={36} />
+            <span>Saved for classroom <b>{sectionCode(sel.cls, sel.shift, sel.section)}</b> only. Other classrooms cannot see or open it.</span>
           </div>
 
           {status.error && (
