@@ -40,8 +40,9 @@ $manifest = [ordered]@{
 # Write without a byte-order mark so every JSON parser accepts it.
 [System.IO.File]::WriteAllText((Join-Path $out 'update.json'), ($manifest | ConvertTo-Json), (New-Object System.Text.UTF8Encoding $false))
 
-gh release view live -R $Repo *> $null
-if ($LASTEXITCODE -ne 0) {
+# (Listing tags avoids stderr output, which Windows PowerShell 5.1 would turn into an error.)
+$tags = @(gh release list -R $Repo --limit 100 --json tagName --jq '.[].tagName')
+if ($tags -notcontains 'live') {
   gh release create live -R $Repo --prerelease --latest=false --title 'In-app updates' `
     --notes 'Update channel used by the installed apps. To install the app, use the latest release instead.'
   if ($LASTEXITCODE -ne 0) { throw 'Could not create the live release' }
