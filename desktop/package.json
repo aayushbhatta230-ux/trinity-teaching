@@ -1,7 +1,7 @@
 {
   "name": "trinity-teaching",
   "productName": "Trinity Teaching",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Trinity Teaching — classroom presentations app for Trinity International College",
   "author": "Trinity International College",
   "main": "main.cjs",

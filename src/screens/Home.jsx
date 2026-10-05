@@ -3,7 +3,12 @@ import Icon from '../components/Icon.jsx';
 import { Clock } from '../components/Chrome.jsx';
 import { Arcs, Ribbon } from '../components/Decor.jsx';
 import { INSTITUTION } from '../data/institution.js';
-import { desktopApp } from '../lib/native.js';
+import { desktopApp, isNativeApp, exitApp } from '../lib/native.js';
+
+// The installed apps (Windows and Android) get an Exit button; a browser tab does not.
+const canExit = !!desktopApp || isNativeApp;
+// Called with no arguments: the desktop bridge cannot pass a click event across.
+const quit = () => (desktopApp ? desktopApp.quit() : exitApp());
 
 export default function Home({ onStart }) {
   return (
@@ -14,8 +19,8 @@ export default function Home({ onStart }) {
       </div>
       <div className="home-clock">
         <Clock />
-        {desktopApp && (
-          <button className="btn-exit" onClick={desktopApp.quit} aria-label="Exit Trinity Teaching">
+        {canExit && (
+          <button className="btn-exit" onClick={() => quit()} aria-label="Exit Trinity Teaching">
             <Icon name="power" size={34} stroke={2} />
             <span>Exit</span>
           </button>

@@ -400,7 +400,7 @@ h1, h2, h3, p { margin: 0; }
 }
 .home-arcs { top: 0; left: 0; width: 100%; height: 55%; }
 .home-art-mark { position: absolute; left: 50%; top: 54%; width: 62%; height: auto; transform: translate(-42%, -50%); opacity: 0.9; }
-.home-clock { position: absolute; top: 2.75rem; right: 3.75rem; z-index: 1; }
+.home-clock { position: absolute; top: 2.75rem; right: 3.75rem; z-index: 3; } /* above the home panel so Exit stays tappable */
 .home-clock { display: flex; align-items: center; gap: 1.5rem; }
 .btn-exit {
   min-height: 4.25rem; padding: 0 1.4rem; border-radius: 2.2rem;

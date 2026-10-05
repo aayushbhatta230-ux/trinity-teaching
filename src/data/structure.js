@@ -37,7 +37,7 @@ export const GROUPS = [
     label: 'Biology',
     icon: 'leaf',
     sections: { M: letters('I', 'Q'), D: letters('I', 'T') },
-    subjects: ['biology', 'physics', 'chemistry', 'english', 'nepali'],
+    subjects: ['biology', 'physics', 'chemistry', 'mathematics', 'english', 'nepali'],
   },
 ];
 
