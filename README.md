@@ -44,6 +44,30 @@ This builds the app, copies it into the Android project (`android/`), compiles i
 - **Android Studio:** you can also open `android/` there and choose Build → Build APK.
 - **Releases:** before each release, bump `version` in `package.json`, and `versionCode` and `versionName` in `android/app/build.gradle`.
 
+## The Windows app
+
+The same app also ships as a Windows desktop application, with a standard setup wizard.
+
+- **Install:** run `TrinityTeaching-Setup-<version>.exe` and follow the wizard.
+  - It installs for the current user without admin rights, or for all users if you run it as administrator.
+  - You can choose the install folder.
+  - It creates **Desktop** and **Start menu** shortcuts, and appears in **Settings → Apps** with an uninstaller.
+- **Running:** the app opens full screen. **F11** switches full screen on and off, and the **Exit** button on the home screen closes the app.
+- **Offline and private:** it works fully offline. Uploaded presentations are stored in the app's own data folder and are kept when the app is reinstalled or updated.
+- **Unsigned:** the installer is not code-signed, so Windows SmartScreen may show "Windows protected your PC". Click **More info → Run anyway**. A code-signing certificate for the college would remove this warning.
+
+### Building the installer
+
+```bash
+npm run windows
+```
+
+This writes `release/windows/TrinityTeaching-Setup-<version>.exe`.
+
+- The desktop app shell is in `desktop/`: `main.cjs` and `preload.cjs`.
+- The installer settings are in `electron-builder.yml`.
+- The icon and installer artwork are in `desktop/build/`.
+
 For development in a desktop browser, run `npm run dev`.
 
 ## Presentations

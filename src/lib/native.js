@@ -43,5 +43,8 @@ export function useHardwareBack(onNavigateBack) {
 
 export const exitApp = () => NativeApp.exitApp();
 
+/** Desktop (Windows) app bridge from desktop/preload.cjs, or undefined in other builds. */
+export const desktopApp = typeof window !== 'undefined' ? window.trinityDesktop : undefined;
+
 /** True while a dialog/overlay is open (used to pause the idle reset). */
 export const hasOpenOverlay = () => handlers.length > 0;

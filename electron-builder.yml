@@ -1,0 +1,44 @@
+# Windows installer for Trinity Teaching (built by scripts/build-windows.ps1 / `npm run windows`).
+appId: np.edu.trinity.teaching
+productName: Trinity Teaching
+copyright: Copyright © Trinity International College
+directories:
+  app: desktop            # the desktop app package (main.cjs, preload.cjs, app/index.html)
+  buildResources: desktop/build
+  output: release/windows
+files:
+  - main.cjs
+  - preload.cjs
+  - app/**
+  - build/icon.png
+  - package.json
+  # Everything the app needs is bundled into app/index.html — ship no node_modules.
+  - "!node_modules/**"
+asar: true
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: icon.ico
+  executableName: TrinityTeaching
+  legalTrademarks: Trinity International College
+nsis:
+  oneClick: false                         # classic setup wizard
+  perMachine: false                       # installs for the current user, no admin needed…
+  allowElevation: true                    # …or for all users if the installer is run as admin
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: Trinity Teaching
+  menuCategory: Trinity International College
+  installerIcon: icon.ico
+  uninstallerIcon: icon.ico
+  installerHeaderIcon: icon.ico
+  installerSidebar: installerSidebar.bmp
+  uninstallerSidebar: installerSidebar.bmp
+  installerHeader: installerHeader.bmp
+  runAfterFinish: true
+  deleteAppDataOnUninstall: false         # keep uploaded presentations if the app is reinstalled
+  artifactName: TrinityTeaching-Setup-${version}.${ext}
+  uninstallDisplayName: Trinity Teaching
+publish: null

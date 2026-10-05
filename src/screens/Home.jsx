@@ -3,6 +3,7 @@ import Icon from '../components/Icon.jsx';
 import { Clock } from '../components/Chrome.jsx';
 import { Arcs, Ribbon } from '../components/Decor.jsx';
 import { INSTITUTION } from '../data/institution.js';
+import { desktopApp } from '../lib/native.js';
 
 export default function Home({ onStart }) {
   return (
@@ -11,7 +12,15 @@ export default function Home({ onStart }) {
         <Arcs className="home-arcs" />
         <Mark className="home-art-mark" />
       </div>
-      <div className="home-clock"><Clock /></div>
+      <div className="home-clock">
+        <Clock />
+        {desktopApp && (
+          <button className="btn-exit" onClick={desktopApp.quit} aria-label="Exit Trinity Teaching">
+            <Icon name="power" size={34} stroke={2} />
+            <span>Exit</span>
+          </button>
+        )}
+      </div>
       <main className="home-panel">
         <Logo size="lg" tagline />
         <div className="home-copy">
