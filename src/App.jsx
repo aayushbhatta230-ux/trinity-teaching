@@ -79,7 +79,8 @@ export default function App() {
   else if (path === 'home') screen = <Home onStart={go.start} />;
   else if (path === 'teacher') screen = <TeacherScreen sel={sel} go={go} />;
   else if (path === 'resources') screen = <ResourcesScreen sel={sel} go={go} />;
-  else if (path === 'view') screen = <Viewer sel={sel} id={params.r} page={Number(params.pg) || 1} go={go} />;
+  // Keyed by the whole selection: changing class/shift/section re-checks whether the file belongs here.
+  else if (path === 'view') screen = <Viewer key={`${params.r}|${Object.values(sel).join('|')}`} sel={sel} id={params.r} page={Number(params.pg) || 1} go={go} />;
   else if (FLOW.has(path)) screen = <ChoiceScreen key={path} step={path} sel={sel} go={go} />;
 
   return <AppShell>{screen}</AppShell>;

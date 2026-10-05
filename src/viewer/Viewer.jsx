@@ -57,7 +57,8 @@ export default function Viewer({ sel, id, page, go }) {
       try {
         const rec = await getPresentation(id);
         const teacher = resolveTeacher(sel);
-        if (!rec || rec.cls !== sel.cls || rec.portion !== sel.portion || rec.teacher !== teacher?.id) {
+        const visibleHere = rec && rec.shift === sel.shift && rec.group === sel.group && (!rec.sections || rec.sections.includes(sel.section));
+        if (!rec || !visibleHere || rec.cls !== sel.cls || rec.portion !== sel.portion || rec.teacher !== teacher?.id) {
           if (!cancelled) setState({ status: 'missing' });
           return;
         }

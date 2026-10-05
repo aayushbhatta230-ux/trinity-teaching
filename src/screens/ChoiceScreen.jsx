@@ -21,7 +21,7 @@ function describe(step, sel) {
         title: 'Select Group', key: 'group', size: 'xl',
         options: GROUPS.map((g) => {
           const secs = g.sections[sel.shift];
-          return { id: g.id, label: g.label, sub: `Sections ${secs[0]} – ${secs[secs.length - 1]}`, icon: g.icon };
+          return { id: g.id, label: g.label, sub: `${sectionCode(sel.cls, sel.shift, secs[0])} – ${sectionCode(sel.cls, sel.shift, secs[secs.length - 1])}`, icon: g.icon };
         }),
       };
     case 'section': {
@@ -29,7 +29,7 @@ function describe(step, sel) {
       return {
         title: `Select Section (${getGroup(sel.group).label})`, key: 'section',
         size: secs.length > 10 ? 'sm' : 'md', cols: secs.length > 10 ? 6 : secs.length > 8 ? 5 : 4,
-        options: secs.map((s) => ({ id: s, label: s, sub: sectionCode(sel.cls, sel.shift, s) })),
+        options: secs.map((s) => ({ id: s, label: sectionCode(sel.cls, sel.shift, s) })),
       };
     }
     case 'subject': {

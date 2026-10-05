@@ -12,7 +12,7 @@ export function contextChips(sel, upTo) {
   if (has('cls')) chips.push(getClass(sel.cls).label);
   if (has('shift')) chips.push(getShift(sel.shift).label);
   if (has('group')) chips.push(getGroup(sel.group).label);
-  if (has('section')) chips.push(`Section ${sel.section} (${sectionCode(sel.cls, sel.shift, sel.section)})`);
+  if (has('section')) chips.push(sectionCode(sel.cls, sel.shift, sel.section));
   if (has('subject')) chips.push(getSubject(sel.subject).label);
   if (has('portion') && hasPortionChoice(sel.subject)) chips.push(getPortion(sel.portion).label);
   return chips;

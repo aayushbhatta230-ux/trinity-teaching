@@ -7,6 +7,7 @@ import { getSubject, getPortion, hasPortionChoice, resolveTeacher } from '../lib
 import { usePresentations, deletePresentation } from '../lib/library.js';
 import { formatDate, formatSize } from '../lib/format.js';
 import { isNativeApp } from '../lib/native.js';
+import { sectionCode } from '../data/structure.js';
 
 /** Chapter-wise presentations uploaded by the assigned teacher for this class. */
 export default function ResourcesScreen({ sel, go }) {
@@ -73,7 +74,7 @@ export default function ResourcesScreen({ sel, go }) {
                 <span className="file-title">{p.title}</span>
                 <span className="file-desc">
                   {p.pages} {p.pages === 1 ? 'slide' : 'slides'} · {formatSize(p.size)}
-                  {p.sections ? ` · Section ${p.sections.join(', ')} only` : ''}
+                  {p.sections ? ` · ${p.sections.map((s) => sectionCode(p.cls, p.shift, s)).join(', ')} only` : ''}
                 </span>
               </span>
               <span className="file-meta">

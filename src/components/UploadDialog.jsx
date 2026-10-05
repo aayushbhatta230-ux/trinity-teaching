@@ -3,7 +3,7 @@ import Icon from './Icon.jsx';
 import { addPresentation } from '../lib/library.js';
 import { openPdf, isPdf } from '../lib/pdf.js';
 import { formatSize, titleFromFileName } from '../lib/format.js';
-import { getClass, getPortion, getSubject, hasPortionChoice } from '../lib/catalog.js';
+import { getClass, getPortion, getSubject, getShift, getGroup, hasPortionChoice, sectionsFor } from '../lib/catalog.js';
 import { sectionCode } from '../data/structure.js';
 import { useBackHandler } from '../lib/native.js';
 
@@ -132,10 +132,10 @@ export default function UploadDialog({ sel, teacher, defaultChapter, onClose, on
             <span className="field-label">Show to</span>
             <div className="segmented">
               <button className={scope === 'all' ? 'is-active' : ''} onClick={() => setScope('all')}>
-                All my sections of {getClass(sel.cls).label}
+                All {getShift(sel.shift).label} {getGroup(sel.group).label} sections ({sectionCode(sel.cls, sel.shift, sectionsFor(sel)[0])} – {sectionCode(sel.cls, sel.shift, sectionsFor(sel).slice(-1)[0])})
               </button>
               <button className={scope === 'section' ? 'is-active' : ''} onClick={() => setScope('section')}>
-                Only Section {sel.section} ({sectionCode(sel.cls, sel.shift, sel.section)})
+                Only {sectionCode(sel.cls, sel.shift, sel.section)}
               </button>
             </div>
           </div>

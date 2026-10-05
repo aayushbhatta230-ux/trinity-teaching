@@ -71,5 +71,5 @@ export const PORTIONS = {
   'comp.general': { label: 'Computer Science', detail: 'Programming & systems', icon: 'monitor' },
 };
 
-/** Short code shown next to a section, e.g. Morning + A + Class 11 → "MA1". */
+/** Section code used everywhere in the app: shift + section + class, e.g. Morning·A·Class 11 → "MA1", Day·B·Class 12 → "DB2". */
 export const sectionCode = (cls, shift, section) => `${shift}${section}${cls === '11' ? 1 : 2}`;

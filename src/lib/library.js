@@ -6,7 +6,9 @@
  * Record shape:
  *   { id, teacher, cls, portion, shift, group, sections, chapter, title,
  *     fileName, size, pages, uploadedAt, file: Blob }
- * `sections: null` means every section the teacher teaches; an array limits it.
+ * Morning and Day are separate: a presentation only ever shows in the shift (and group)
+ * it was uploaded for. `sections: null` means every section of that shift and group;
+ * an array limits it to those sections.
  */
 import { useCallback, useEffect, useState } from 'react';
 
@@ -46,7 +48,7 @@ const newId = () => `p-${Date.now().toString(36)}-${Math.random().toString(36).s
 export async function listPresentations(sel, teacherId) {
   const all = await tx('readonly', (s) => s.index('byTeacherClassPortion').getAll([teacherId, sel.cls, sel.portion]));
   return all
-    .filter((p) => !p.sections || (p.shift === sel.shift && p.group === sel.group && p.sections.includes(sel.section)))
+    .filter((p) => p.shift === sel.shift && p.group === sel.group && (!p.sections || p.sections.includes(sel.section)))
     .map(({ file, ...meta }) => meta) // keep lists light; the file is loaded when opened
     .sort((a, b) => a.chapter - b.chapter || a.uploadedAt - b.uploadedAt);
 }
