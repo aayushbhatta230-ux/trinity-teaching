@@ -113,6 +113,19 @@ function PdfViewer({ sel, rec, doc, aspect, page, go }) {
   useBackHandler(grid, () => setGrid(false));
   useBackHandler(present && !grid, togglePresent);
 
+  // Full screen shows only the slide; tapping the middle shows small controls for 3 seconds.
+  const [hud, setHud] = useState(false);
+  const hudTimer = useRef(null);
+  const showHud = useCallback(() => {
+    setHud(true);
+    clearTimeout(hudTimer.current);
+    hudTimer.current = setTimeout(() => setHud(false), 3000);
+  }, []);
+  useEffect(() => {
+    if (present) { setZoom(1); showHud(); } else setHud(false);
+    return () => clearTimeout(hudTimer.current);
+  }, [present, showHud]);
+
   const goto = useCallback((k) => {
     const n = Math.min(Math.max(k, 1), total);
     if (n !== p) { go.setPage(rec.id, n); setZoom(1); }
@@ -147,7 +160,9 @@ function PdfViewer({ sel, rec, doc, aspect, page, go }) {
     ro.observe(areaRef.current);
     return () => ro.disconnect();
   }, []);
-  const fitW = Math.max(0, Math.min(area.w - 24, (area.h - 24) * aspect));
+  // Full screen uses every pixel; otherwise keep a small margin around the slide.
+  const margin = present ? 0 : 24;
+  const fitW = Math.max(0, Math.min(area.w - margin, (area.h - margin) * aspect));
   const cssW = Math.round(fitW * zoom);
 
   // Render the current page (re-render on page, size or zoom change).
@@ -181,6 +196,14 @@ function PdfViewer({ sel, rec, doc, aspect, page, go }) {
     const dx = e.clientX - g.x;
     const dy = e.clientY - g.y;
     if (zoom === 1 && Math.abs(dx) > 120 && Math.abs(dx) > Math.abs(dy) * 1.5) { goto(dx < 0 ? p + 1 : p - 1); return; }
+    // Full screen: tap the left or right edge to turn the page, the middle to show the controls.
+    if (present && Math.abs(dx) < 10 && Math.abs(dy) < 10) {
+      const x = e.clientX / window.innerWidth;
+      if (x < 0.3) goto(p - 1);
+      else if (x > 0.7) goto(p + 1);
+      else showHud();
+      return;
+    }
     if (e.pointerType === 'touch' && Math.abs(dx) < 10 && Math.abs(dy) < 10) {
       const now = Date.now();
       if (now - (g.lastTap ?? 0) < 320) { setZoom((z) => (z === 1 ? 2 : 1)); g.lastTap = 0; } else g.lastTap = now;
@@ -234,7 +257,7 @@ function PdfViewer({ sel, rec, doc, aspect, page, go }) {
           ref={areaRef}
           onPointerDown={onPointerDown}
           onPointerUp={onPointerUp}
-          onDoubleClick={() => { if (gesture.current.type !== 'touch') setZoom((z) => (z === 1 ? 2 : 1)); }}
+          onDoubleClick={() => { if (!present && gesture.current.type !== 'touch') setZoom((z) => (z === 1 ? 2 : 1)); }}
         >
           <div className="canvas-page" style={{ width: cssW, height: cssW / aspect }}>
             <canvas ref={canvasRef} className={rendered ? '' : 'is-rendering'} />
@@ -242,7 +265,16 @@ function PdfViewer({ sel, rec, doc, aspect, page, go }) {
         </div>
       </div>
 
-      <footer className="controls">
+      {present && (
+        <div className={`present-hud ${hud ? 'is-on' : ''}`} onPointerDown={showHud}>
+          <button className="hud-btn" onClick={() => goto(p - 1)} disabled={p <= 1} aria-label="Previous slide"><Icon name="back" size={40} stroke={2.25} /></button>
+          <span className="hud-page"><b>{p}</b> / {total}</span>
+          <button className="hud-btn" onClick={() => goto(p + 1)} disabled={p >= total} aria-label="Next slide"><Icon name="next" size={40} stroke={2.25} /></button>
+          <button className="hud-btn hud-exit" onClick={togglePresent}><Icon name="minimize" size={34} /><span>Exit full screen</span></button>
+        </div>
+      )}
+
+      {!present && <footer className="controls">
         <div className="controls-group">
           <button className="ctl ctl-wide" onClick={() => goto(p - 1)} disabled={p <= 1}>
             <Icon name="back" size={48} stroke={2.25} /><span>Previous</span>
@@ -272,7 +304,7 @@ function PdfViewer({ sel, rec, doc, aspect, page, go }) {
             <span>{present ? 'Exit Full Screen' : 'Full Screen'}</span>
           </button>
         </div>
-      </footer>
+      </footer>}
 
       {ai === 'ask' && <AskPanel sel={sel} rec={rec} getSlides={getSlides} page={p} onGoto={goto} onClose={() => setAi(null)} />}
       {ai === 'quiz' && <QuizOverlay sel={sel} rec={rec} getSlides={getSlides} page={p} onGoto={goto} onClose={() => setAi(null)} />}

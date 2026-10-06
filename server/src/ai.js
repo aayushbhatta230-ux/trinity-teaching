@@ -173,10 +173,11 @@ async function callModel(env, { rules, context, exams, userText, schema, maxToke
   throw new AIError("The free AI models are busy or today's free limit is used up. Try again in a minute.", 429);
 }
 
-export function ask(env, { context, query, pastList }) {
+export function ask(env, { context, query, pastList, exams }) {
   return callModel(env, {
     rules: ASK_RULES,
     context,
+    exams,
     userText: `PAST QUESTIONS\n${pastList || '(none available for this chapter yet)'}\n\nCurrent slide on the board: ${context.currentSlide || 1}\n\nTEACHER'S REQUEST\n${query}`,
     schema: ASK_SCHEMA,
     maxTokens: 8000,

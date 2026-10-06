@@ -4,7 +4,7 @@
  */
 import { useState } from 'react';
 import Icon from './Icon.jsx';
-import { getAiConfig, normaliseUrl, setAiConfig, testAiConfig } from '../lib/ai.js';
+import { getAiConfig, isBuiltInAi, normaliseUrl, setAiConfig, testAiConfig } from '../lib/ai.js';
 import { useBackHandler } from '../lib/native.js';
 import { WEB_VERSION } from '../lib/updates.js';
 
@@ -41,7 +41,13 @@ export default function AiSetupDialog({ onClose }) {
     }
   };
 
-  const remove = () => { setAiConfig(null); setUrl(''); setCode(''); setStatus({ busy: false, ok: false, message: 'AI turned off on this board.' }); };
+  const custom = !isBuiltInAi();
+  const reset = () => {
+    setAiConfig(null);
+    const c = getAiConfig();
+    setUrl(c?.url || ''); setCode(c?.code || '');
+    setStatus({ busy: false, ok: !!c, message: c ? 'This board uses the college AI server built into the app.' : 'AI is off on this board.' });
+  };
 
   return (
     <div className="overlay" role="dialog" aria-modal="true" aria-labelledby="ai-setup-title">
@@ -49,7 +55,7 @@ export default function AiSetupDialog({ onClose }) {
         <div className="dialog-head">
           <div>
             <h2 id="ai-setup-title">AI setup for this board</h2>
-            <p>Ask the IT team for the server address and the school access code.</p>
+            <p>The college AI server is built into the app. Change it here only if IT asks you to.</p>
           </div>
           <button className="btn-icon" onClick={onClose} aria-label="Close"><Icon name="close" size={44} /></button>
         </div>
@@ -73,7 +79,7 @@ export default function AiSetupDialog({ onClose }) {
           </details>
         </div>
         <div className="dialog-foot">
-          {saved && <button className="btn-secondary" onClick={remove} disabled={status.busy}>Turn off AI</button>}
+          {saved && custom && <button className="btn-secondary" onClick={reset} disabled={status.busy}>Use college server</button>}
           <button className="btn-primary" onClick={save} disabled={!url.trim() || !code.trim() || status.busy}>
             <Icon name="check" size={44} stroke={2.25} /><span>{status.busy ? 'Connecting…' : 'Save and test'}</span>
           </button>

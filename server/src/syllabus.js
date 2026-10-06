@@ -106,9 +106,13 @@ export const SYLLABUS = {
   },
 };
 
-/** Which entrance exams test a subject. */
-export function examsFor(subject) {
-  return Object.keys(SYLLABUS[subject] || {});
+/** The exams each +2 group prepares for: Physical group IOE only, Biology group CEE and IOE. */
+export const GROUP_EXAMS = { PHY: ['IOE'], BIO: ['CEE', 'IOE'] };
+
+/** Entrance exams that test a subject, limited to the class's group. */
+export function examsFor(subject, group) {
+  const forGroup = GROUP_EXAMS[group] || ['CEE', 'IOE'];
+  return Object.keys(SYLLABUS[subject] || {}).filter((e) => forGroup.includes(e));
 }
 
 /** The syllabus text for one subject and the chosen exams, for the AI prompt. */

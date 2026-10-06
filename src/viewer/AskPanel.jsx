@@ -78,7 +78,7 @@ export default function AskPanel({ sel, rec, getSlides, page, onGoto, onClose })
         <div className="ai-body">
           {state.status === 'idle' && (
             <div className="ai-suggest">
-              <p>Answers come only from <b>Chapter {rec.chapter}: {rec.title}</b> and real CEE, IOE and IOM past papers.</p>
+              <p>Answers come only from <b>Chapter {rec.chapter}: {rec.title}</b> and the CEE and IOE entrance syllabus and past papers.</p>
               <div className="ai-chips">
                 {SUGGESTIONS.map((s) => <button key={s} className="btn-secondary" onClick={() => pickSuggestion(s)}>{s.trim()}{s.endsWith(' ') ? '…' : ''}</button>)}
               </div>

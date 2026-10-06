@@ -509,7 +509,26 @@ h1, h2, h3, p { margin: 0; }
 .ctl-page { min-width: 11.5rem; color: var(--ink); background: var(--bg-2); border-color: var(--line); }
 .ctl-page b { font-size: 2.1rem; }
 .ctl-zoom { min-width: 7.5rem; color: var(--ink); background: var(--bg-2); border-color: var(--line); }
-.is-present .canvas { padding: 0.75rem; }
+/* full screen: only the slide, edge to edge, on black */
+.viewer.is-present { background: #000; }
+.is-present .canvas { padding: 0; background: #000; }
+.is-present .canvas-page { box-shadow: none; }
+.present-hud {
+  position: absolute; left: 50%; bottom: 1.5rem; transform: translateX(-50%); z-index: 10;
+  display: flex; align-items: center; gap: 0.8rem; padding: 0.6rem; border-radius: 2.5rem;
+  background: rgba(20, 12, 13, 0.82); color: #fff; box-shadow: 0 0.5rem 2rem rgba(0, 0, 0, 0.5);
+  opacity: 0; pointer-events: none; transition: opacity 0.25s;
+}
+.present-hud.is-on { opacity: 1; pointer-events: auto; }
+.hud-btn {
+  min-width: 4.75rem; height: 4.75rem; padding: 0 1rem; border-radius: 2.4rem;
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+  font-size: 1.5rem; font-weight: 600; color: #fff; background: rgba(255, 255, 255, 0.12);
+}
+.hud-btn:disabled { opacity: 0.35; }
+.hud-exit { background: var(--brand); padding: 0 1.4rem; }
+.hud-page { font-size: 1.6rem; padding: 0 0.6rem; white-space: nowrap; }
+.hud-page b { font-size: 2rem; }
 
 /* overlay page grid */
 .overlay { position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 20; background: rgba(29, 19, 20, 0.72); display: grid; place-items: center; padding: 2rem; }

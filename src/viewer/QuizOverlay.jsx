@@ -1,5 +1,5 @@
 /**
- * AI Quiz: the toughest real CEE / IOE / IOM past questions that match this chapter,
+ * AI Quiz: the toughest real CEE / IOE past questions that match this chapter,
  * one at a time on the board. AI practice questions only fill gaps and are labelled.
  */
 import { useState } from 'react';
@@ -11,20 +11,21 @@ import { useBackHandler } from '../lib/native.js';
 const EXAMS = [
   { id: 'CEE', label: 'CEE (MECEE)' },
   { id: 'IOE', label: 'IOE' },
-  { id: 'IOM', label: 'IOM' },
 ];
 const COUNTS = [5, 10, 15];
-// Which entrance exams test each subject (official syllabi).
+// Which entrance exams test each subject (official syllabi) …
 const TESTED = {
-  physics: ['CEE', 'IOE', 'IOM'],
-  chemistry: ['CEE', 'IOE', 'IOM'],
-  biology: ['CEE', 'IOM'],
+  physics: ['CEE', 'IOE'],
+  chemistry: ['CEE', 'IOE'],
+  biology: ['CEE'],
   mathematics: ['IOE'],
   english: ['IOE'],
 };
+// … and which exams each group prepares for.
+const GROUP_EXAMS = { PHY: ['IOE'], BIO: ['CEE', 'IOE'] };
 
 export default function QuizOverlay({ sel, rec, getSlides, page, onGoto, onClose }) {
-  const offered = EXAMS.filter((e) => (TESTED[sel.subject] || []).includes(e.id));
+  const offered = EXAMS.filter((e) => (TESTED[sel.subject] || []).includes(e.id) && (GROUP_EXAMS[sel.group] || []).includes(e.id));
   const [exams, setExams] = useState(offered.map((e) => e.id));
   const [count, setCount] = useState(10);
   const [state, setState] = useState({ status: 'setup' });
@@ -66,7 +67,7 @@ export default function QuizOverlay({ sel, rec, getSlides, page, onGoto, onClose
         {(state.status === 'setup' || state.status === 'busy') && (
           <div className="ai-body quiz-setup">
             <p className="quiz-lead">Toughest <b>real past questions</b> that match <b>{rec.title}</b>, hardest first, then practice questions on the official entrance syllabus.</p>
-            {!offered.length && <div className="quiz-note">The CEE, IOE and IOM entrance exams do not test this subject.</div>}
+            {!offered.length && <div className="quiz-note">The entrance exams for this group do not test this subject.</div>}
             <div className="quiz-row">
               <span className="field-label">Entrance exams</span>
               <div className="ai-chips">

@@ -53,7 +53,7 @@ function readContext(body) {
     slides.push({ n: Number(s.n) || slides.length + 1, text });
   }
   return {
-    cls: String(c.cls || ''), subject: c.subject, subjectLabel: String(c.subjectLabel || c.subject),
+    cls: String(c.cls || ''), group: ['PHY', 'BIO'].includes(c.group) ? c.group : null, subject: c.subject, subjectLabel: String(c.subjectLabel || c.subject),
     portion: c.portion ? String(c.portion) : null, portionLabel: String(c.portionLabel || ''),
     chapter: Number(c.chapter) || 1, title: String(c.title || '').slice(0, 200),
     currentSlide: Number(c.currentSlide) || 1, slides,
@@ -69,11 +69,11 @@ async function handleAsk(req, env) {
 
   const weights = chapterTerms(context);
   for (const w of terms(query)) weights.set(w, (weights.get(w) || 0) + 8); // the request matters most
-  const past = await shortlist(env.DB, { subject: context.subject, portion: context.portion, weights, limit: 30 });
+  const past = await shortlist(env.DB, { subject: context.subject, portion: context.portion, exams: examsFor(context.subject, context.group), weights, limit: 30 });
 
   const r = env.DEMO_MODE === '1'
     ? demo.ask({ context, query, past })
-    : await ai.ask(env, { context, query, pastList: listForPrompt(past) });
+    : await ai.ask(env, { context, query, exams: examsFor(context.subject, context.group), pastList: listForPrompt(past) });
 
   const byId = new Map(past.map((p) => [p.id, p]));
   const slideOk = (n) => Number.isInteger(n) && context.slides.some((s) => s.n === n);
@@ -94,8 +94,8 @@ async function handleQuiz(req, env) {
   if (!context) return fail('Missing chapter.', 400);
   const count = Math.min(20, Math.max(3, Number(body?.count) || 10));
   // Only exams that actually test this subject (e.g. biology: CEE and IOM; mathematics: IOE).
-  const tested = examsFor(context.subject);
-  if (!tested.length) return fail('No entrance exam tests this subject, so there is no quiz for it.', 400);
+  const tested = examsFor(context.subject, context.group);
+  if (!tested.length) return fail('The entrance exams for this group do not test this subject, so there is no quiz for it.', 400);
   let exams = (Array.isArray(body?.exams) ? body.exams : tested).filter((e) => tested.includes(e));
   if (!exams.length) exams = tested;
   if (!(await spend(env))) return fail("Today's AI limit for the college has been reached. It resets tomorrow.", 429);

@@ -1,25 +1,30 @@
 /**
  * Ask AI and AI Quiz: talks to the college's own AI server (server/ in this repo).
  *
- * The server address and the school access code are entered once per board in the hidden
- * AI setup (press and hold the logo on the home screen for 3 seconds). They are stored on
- * the board only, never in the app download, so nobody can use the college's AI from the
- * public app file.
+ * The college's server address and access code are built into the app (vite.config.js), so
+ * every board works without setup. The hidden AI setup (press and hold the logo on the home
+ * screen for 3 seconds) can point one board at a different server or code.
  *
  * Slide navigation also works offline: findSlide() searches the slide text on the board.
  */
 import { getPortion, getSubject, getClass } from './catalog.js';
 
 const CONFIG_KEY = 'trinity-ai';
+// eslint-disable-next-line no-undef
+const BUILT_IN = typeof __AI_DEFAULT__ !== 'undefined' ? __AI_DEFAULT__ : null;
 
+/** This board's own setting if it has one, otherwise the college server built into the app. */
 export function getAiConfig() {
   try {
     const c = JSON.parse(localStorage.getItem(CONFIG_KEY) || 'null');
-    return c?.url && c?.code ? c : null;
-  } catch {
-    return null;
-  }
+    if (c?.url && c?.code) return c;
+  } catch { /* storage unavailable */ }
+  return BUILT_IN?.url && BUILT_IN?.code ? BUILT_IN : null;
 }
+
+export const isBuiltInAi = () => {
+  try { return !localStorage.getItem(CONFIG_KEY) && !!BUILT_IN; } catch { return !!BUILT_IN; }
+};
 
 export function setAiConfig(cfg) {
   try {
@@ -73,6 +78,7 @@ export async function testAiConfig(cfg) {
 export function chapterContext(sel, rec, slides, currentSlide) {
   return {
     cls: getClass(sel.cls)?.label?.replace(/^Class\s*/i, '') || sel.cls,
+    group: sel.group,
     subject: sel.subject,
     subjectLabel: getSubject(sel.subject)?.label || sel.subject,
     portion: sel.portion,
