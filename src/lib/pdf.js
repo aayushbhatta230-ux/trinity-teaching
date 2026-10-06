@@ -40,3 +40,25 @@ export function renderPage(page, canvas, cssWidth) {
   canvas.style.height = `${(cssWidth * base.height) / base.width}px`;
   return page.render({ canvasContext: canvas.getContext('2d'), viewport });
 }
+
+/**
+ * The text of every slide, for AI search and slide navigation: [{ n, text }].
+ * Scanned (image-only) slides come back with empty text.
+ */
+export async function extractSlides(doc) {
+  const slides = [];
+  for (let n = 1; n <= doc.numPages; n++) {
+    let text = '';
+    try {
+      const page = await doc.getPage(n);
+      const content = await page.getTextContent();
+      text = content.items.map((it) => (it.str ?? '') + (it.hasEOL ? '\n' : ' ')).join('');
+      text = text.replace(/[ \t]+/g, ' ').replace(/ ?\n ?/g, '\n').replace(/\n{2,}/g, '\n').trim().slice(0, 4000);
+      page.cleanup();
+    } catch {
+      // A page that fails to read just has no text.
+    }
+    slides.push({ n, text });
+  }
+  return slides;
+}

@@ -1,11 +1,63 @@
 import { useEffect, useState } from 'react';
+
 import Logo from './Logo.jsx';
 import Icon from './Icon.jsx';
 import { visibleSteps } from '../lib/flow.js';
 
+/**
+ * Root font size from the screen size, done in JS so it works on every board browser
+ * (older Android WebViews mis-handle the CSS clamp/min/viewport-unit version).
+ * Same formula as the CSS fallback in styles.css: 16px on 1920×1080, 32px on 4K.
+ */
+function fitRootFont() {
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  if (!w || !h) return;
+  const portrait = h > w;
+  const px = portrait
+    ? Math.max(13, Math.min(26, Math.min(w * 0.019, h * 0.0125)))
+    : Math.max(12, Math.min(36, Math.min(w * 0.00834, h * 0.01482)));
+  document.documentElement.style.fontSize = `${px.toFixed(2)}px`;
+}
+
 /** Full-viewport application shell. Layout is fluid; sizes are in rem and the root font scales with the screen. */
 export function AppShell({ children }) {
+  useEffect(() => {
+    fitRootFont();
+    window.addEventListener('resize', fitRootFont);
+    window.addEventListener('orientationchange', fitRootFont);
+    return () => {
+      window.removeEventListener('resize', fitRootFont);
+      window.removeEventListener('orientationchange', fitRootFont);
+    };
+  }, []);
   return <div className="app">{children}</div>;
+}
+
+/**
+ * Safety net for screens whose content must never be cut off (the Home screen):
+ * if the element's content is taller than the space it has, scale it down to fit.
+ */
+export function useFitToHeight(boxRef, contentRef) {
+  useEffect(() => {
+    const box = boxRef.current;
+    const el = contentRef.current;
+    if (!box || !el) return undefined;
+    const fit = () => {
+      el.style.transform = '';
+      const cs = getComputedStyle(box);
+      const room = box.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+      const k = room / el.offsetHeight;
+      if (k < 0.995) {
+        el.style.transformOrigin = getComputedStyle(el).textAlign === 'center' ? 'center center' : 'left center';
+        el.style.transform = `scale(${Math.max(0.5, k).toFixed(3)})`;
+      }
+    };
+    fit();
+    const t = setTimeout(fit, 400); // again after fonts and images have loaded
+    window.addEventListener('resize', fit);
+    return () => { clearTimeout(t); window.removeEventListener('resize', fit); };
+  }, [boxRef, contentRef]);
 }
 
 /** Current root font size in px — used where JS needs to size things (page thumbnails). */

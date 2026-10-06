@@ -8,7 +8,7 @@
  *
  * Record shape:
  *   { id, room, teacher, cls, shift, group, section, portion, chapter, title,
- *     fileName, size, pages, uploadedAt, file: Blob }
+ *     fileName, size, pages, uploadedAt, slides: [{ n, text }], file: Blob }
  */
 import { useCallback, useEffect, useState } from 'react';
 import { sectionCode } from '../data/structure.js';
@@ -96,7 +96,7 @@ export async function listPresentations(sel, teacherId) {
   const all = await tx(roomOf(sel), 'readonly', (s) => s.index('byTeacherPortion').getAll([teacherId, sel.portion]));
   return all
     .filter((p) => p.cls === sel.cls)
-    .map(({ file, ...meta }) => meta) // keep lists light; the file is loaded when opened
+    .map(({ file, slides, ...meta }) => meta) // keep lists light; the file is loaded when opened
     .sort((a, b) => a.chapter - b.chapter || a.uploadedAt - b.uploadedAt);
 }
 
@@ -124,6 +124,12 @@ export async function addPresentation(sel, meta, file) {
   navigator.storage?.persist?.().catch(() => {});
   return record.id;
 }
+
+/** Saves slide text for a presentation uploaded before AI search existed. */
+export const saveSlides = (sel, id, slides) => tx(roomOf(sel), 'readwrite', (s) => {
+  const r = s.get(id);
+  r.onsuccess = () => { if (r.result) s.put({ ...r.result, slides }); };
+});
 
 export const deletePresentation = (sel, id) => tx(roomOf(sel), 'readwrite', (s) => s.delete(id));
 

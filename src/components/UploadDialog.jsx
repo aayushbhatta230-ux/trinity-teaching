@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import Icon from './Icon.jsx';
 import { addPresentation } from '../lib/library.js';
-import { openPdf, isPdf } from '../lib/pdf.js';
+import { openPdf, isPdf, extractSlides } from '../lib/pdf.js';
 import { formatSize, titleFromFileName } from '../lib/format.js';
 import { getClass, getPortion, getSubject, hasPortionChoice } from '../lib/catalog.js';
 import { sectionCode } from '../data/structure.js';
@@ -14,6 +14,7 @@ const userError = (message) => Object.assign(new Error(message), { forUser: true
 export default function UploadDialog({ sel, teacher, defaultChapter, onClose, onSaved }) {
   const [file, setFile] = useState(null);
   const [pages, setPages] = useState(0);
+  const [slides, setSlides] = useState([]);
   const [title, setTitle] = useState('');
   const [chapter, setChapter] = useState(Math.min(defaultChapter, MAX_CHAPTER));
   const [status, setStatus] = useState({ busy: false, error: '' });
@@ -36,6 +37,8 @@ export default function UploadDialog({ sel, teacher, defaultChapter, onClose, on
       if (!(await isPdf(f))) throw userError('This file is not a PDF. Please choose a PDF file.');
       const doc = await openPdf(f);
       setPages(doc.numPages);
+      // Slide text lets Ask AI search and navigate this presentation.
+      setSlides(await extractSlides(doc));
       doc.destroy();
       setFile(f);
       if (!title) setTitle(titleFromFileName(f.name));
@@ -56,6 +59,7 @@ export default function UploadDialog({ sel, teacher, defaultChapter, onClose, on
           chapter,
           title: title.trim(),
           pages,
+          slides,
         },
         file
       );

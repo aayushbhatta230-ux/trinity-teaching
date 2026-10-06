@@ -2,6 +2,7 @@ import {
   Sunrise, Sun, Atom, Leaf, Sigma, FlaskConical, BookOpen, Languages, Monitor, Triangle, Cog, Zap,
   Thermometer, Hexagon, Sprout, Bug, Presentation, FileText, FolderOpen, ChevronLeft, ChevronRight, Home, ArrowRight, Maximize, Minimize, ZoomIn, ZoomOut,
   LayoutGrid, X, User, ShieldCheck, AlertTriangle, Upload, Trash2, Check, Settings2, Minus, Plus, Power, Variable, Download,
+  Sparkles, Search, Trophy,
 } from 'lucide-react';
 
 const MAP = {
@@ -12,6 +13,7 @@ const MAP = {
   home: Home, arrow: ArrowRight, maximize: Maximize, minimize: Minimize, zoomIn: ZoomIn, zoomOut: ZoomOut,
   grid: LayoutGrid, close: X, user: User, shield: ShieldCheck, alert: AlertTriangle,
   upload: Upload, trash: Trash2, check: Check, settings: Settings2, minus: Minus, plus: Plus, power: Power, variable: Variable, download: Download,
+  sparkles: Sparkles, search: Search, trophy: Trophy,
 };
 
 /** Sizes are given in design px (at 16px root) and rendered in rem, so icons scale with the screen. */

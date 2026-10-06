@@ -140,6 +140,24 @@ The viewer is read-only on purpose. It has no editing, pen, annotation or highli
 - **Full Screen** hides the header and thumbnails.
 - Keyboard and presentation clickers: ← → PgUp PgDn, + −, F
 
+## Ask AI and AI Quiz
+
+In the viewer, **Ask AI** answers questions about the open chapter: formulas, definitions,
+explanations and past MCQs. It answers only from the teacher's slides and real CEE (MECEE), IOE
+and IOM past questions, and shows which slides it used. "Take me to the slide about Lenz's law"
+opens that slide; the board does this by itself, even without internet.
+
+**Quiz** builds a classroom quiz from the toughest real past questions that match the chapter.
+Each question shows its source (e.g. "IOE 2079 · Q23") and whether its answer comes from the official key
+or was worked out by AI. AI practice questions only fill gaps and are labelled.
+
+The slide text is read when a PDF is uploaded. Older uploads are read the first time AI is used. Scanned
+slides that are only pictures cannot be searched.
+
+AI runs through the college's own small server, which holds the API key and the past-paper bank.
+Setup, adding past papers and costs: [server/README.md](server/README.md). To turn AI on for a
+board, press and hold the logo on the home screen for 3 seconds.
+
 ## Brand
 
 - **Logo:** the official college logo, supplied as `src/assets/brand/trinity-logo-original.png`. The app uses transparent cuts of it:

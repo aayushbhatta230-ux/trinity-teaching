@@ -6,8 +6,10 @@ import { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react
 import Icon from '../components/Icon.jsx';
 import { BackButton, Clock, useRemPx } from '../components/Chrome.jsx';
 import { getTeacher, resolveTeacher } from '../lib/catalog.js';
-import { getPresentation } from '../lib/library.js';
-import { openPdf, renderPage } from '../lib/pdf.js';
+import { getPresentation, saveSlides } from '../lib/library.js';
+import { openPdf, renderPage, extractSlides } from '../lib/pdf.js';
+import AskPanel from './AskPanel.jsx';
+import QuizOverlay from './QuizOverlay.jsx';
 import { formatDate, formatSize } from '../lib/format.js';
 import { isNativeApp, useBackHandler } from '../lib/native.js';
 
@@ -78,7 +80,7 @@ export default function Viewer({ sel, id, page, go }) {
   if (state.status === 'loading') return <div className="screen viewer"><div className="viewer-loading">Opening presentation…</div></div>;
   if (state.status === 'missing') return <Unavailable go={go} title="This presentation belongs to another classroom" />;
   if (state.status === 'error') return <Unavailable go={go} title="This presentation could not be opened" message="The PDF may be damaged. Remove it and upload it again." />;
-  return <PdfViewer {...state} page={page} go={go} />;
+  return <PdfViewer {...state} sel={sel} page={page} go={go} />;
 }
 
 /** A page thumbnail that renders only once it scrolls into view. */
@@ -100,12 +102,13 @@ function Thumb({ doc, number, width, aspect }) {
   return <canvas ref={ref} className="thumb-canvas" style={{ width, height: width / aspect }} />;
 }
 
-function PdfViewer({ rec, doc, aspect, page, go }) {
+function PdfViewer({ sel, rec, doc, aspect, page, go }) {
   const total = doc.numPages;
   const p = Math.min(Math.max(page, 1), total);
   const [zoom, setZoom] = useState(1);
   const [present, togglePresent] = useFullscreen();
   const [grid, setGrid] = useState(false);
+  const [ai, setAi] = useState(null); // 'ask' | 'quiz' | null
   const rem = useRemPx() / 16;
   useBackHandler(grid, () => setGrid(false));
   useBackHandler(present && !grid, togglePresent);
@@ -121,6 +124,7 @@ function PdfViewer({ rec, doc, aspect, page, go }) {
   // Keyboard and presentation clickers.
   useEffect(() => {
     const on = (e) => {
+      if (ai || e.target.closest?.('input, textarea')) return;
       if (['ArrowRight', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); goto(p + 1); }
       else if (['ArrowLeft', 'PageUp'].includes(e.key)) { e.preventDefault(); goto(p - 1); }
       else if (e.key === 'Home') goto(1);
@@ -133,7 +137,7 @@ function PdfViewer({ rec, doc, aspect, page, go }) {
     };
     window.addEventListener('keydown', on);
     return () => window.removeEventListener('keydown', on);
-  }, [goto, p, total, zoomBy, togglePresent]);
+  }, [goto, p, total, zoomBy, togglePresent, ai]);
 
   // Fit the page to the available area.
   const areaRef = useRef(null);
@@ -182,6 +186,18 @@ function PdfViewer({ rec, doc, aspect, page, go }) {
       if (now - (g.lastTap ?? 0) < 320) { setZoom((z) => (z === 1 ? 2 : 1)); g.lastTap = 0; } else g.lastTap = now;
     }
   };
+
+  // Slide text for AI: saved at upload; read once from the PDF for older uploads.
+  const slidesRef = useRef(rec.slides ? Promise.resolve(rec.slides) : null);
+  const getSlides = useCallback(() => {
+    if (!slidesRef.current) {
+      slidesRef.current = extractSlides(doc).then((slides) => {
+        saveSlides(sel, rec.id, slides).catch(() => {});
+        return slides;
+      });
+    }
+    return slidesRef.current;
+  }, [doc, sel, rec.id]);
 
   const thumbsRef = useRef(null);
   useEffect(() => { thumbsRef.current?.querySelector('.is-active')?.scrollIntoView({ block: 'nearest' }); }, [p]);
@@ -245,12 +261,21 @@ function PdfViewer({ rec, doc, aspect, page, go }) {
           <button className="ctl" onClick={() => zoomBy(1)} disabled={zoom >= ZOOMS[ZOOMS.length - 1]} aria-label="Zoom in"><Icon name="zoomIn" size={44} /></button>
         </div>
         <div className="controls-group">
+          <button className="ctl ctl-ai" onClick={() => setAi('ask')}>
+            <Icon name="sparkles" size={40} /><span>Ask AI</span>
+          </button>
+          <button className="ctl ctl-ai" onClick={() => setAi('quiz')}>
+            <Icon name="trophy" size={40} /><span>Quiz</span>
+          </button>
           <button className="ctl ctl-wide" onClick={togglePresent}>
             <Icon name={present ? 'minimize' : 'maximize'} size={40} />
             <span>{present ? 'Exit Full Screen' : 'Full Screen'}</span>
           </button>
         </div>
       </footer>
+
+      {ai === 'ask' && <AskPanel sel={sel} rec={rec} getSlides={getSlides} page={p} onGoto={goto} onClose={() => setAi(null)} />}
+      {ai === 'quiz' && <QuizOverlay sel={sel} rec={rec} getSlides={getSlides} page={p} onGoto={goto} onClose={() => setAi(null)} />}
 
       {grid && (
         <div className="overlay" onClick={() => setGrid(false)}>

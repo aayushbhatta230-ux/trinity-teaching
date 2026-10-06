@@ -1,0 +1,20 @@
+{
+  "name": "trinity-ai-server",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Trinity Teaching AI server: holds the AI key, grounds answers in the teacher's slides and the past-paper bank.",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:init": "wrangler d1 execute trinity-ai --remote --file=schema.sql",
+    "db:init-local": "wrangler d1 execute trinity-ai --local --file=schema.sql",
+    "ingest": "node scripts/ingest-papers.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.131.0"
+  },
+  "devDependencies": {
+    "wrangler": "^4.147.0"
+  }
+}

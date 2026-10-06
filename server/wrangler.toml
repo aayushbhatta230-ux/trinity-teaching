@@ -1,0 +1,23 @@
+# Trinity Teaching AI server (Cloudflare Worker).
+# Setup steps are in server/README.md.
+name = "trinity-ai"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+compatibility_flags = ["nodejs_compat"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "trinity-ai"
+# Replace with the id printed by `npx wrangler d1 create trinity-ai`.
+database_id = "00000000-0000-0000-0000-000000000000"
+
+[vars]
+# Maximum AI requests per day for the whole college (protects the AI bill).
+DAILY_LIMIT = "400"
+# "1" answers without calling the AI (for testing the app with no key). Never use in production.
+DEMO_MODE = "0"
+
+# Secrets (set with `npx wrangler secret put NAME`, never written here):
+#   ANTHROPIC_API_KEY  the college's Anthropic API key
+#   ACCESS_CODE        school access code typed once on each board
+#   ADMIN_TOKEN        used by scripts/ingest-papers.mjs to add past papers

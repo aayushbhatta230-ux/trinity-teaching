@@ -1,6 +1,8 @@
 import Logo, { Mark } from '../components/Logo.jsx';
 import Icon from '../components/Icon.jsx';
-import { Clock } from '../components/Chrome.jsx';
+import { useRef, useState } from 'react';
+import AiSetupDialog from '../components/AiSetupDialog.jsx';
+import { Clock, useFitToHeight } from '../components/Chrome.jsx';
 import { Arcs, Ribbon } from '../components/Decor.jsx';
 import { INSTITUTION } from '../data/institution.js';
 import { desktopApp, isNativeApp, exitApp } from '../lib/native.js';
@@ -46,7 +48,26 @@ function UpdateReady() {
   );
 }
 
+/** Press and hold for 3 seconds (teachers will not open it by accident). */
+function useLongPress(onLong, ms = 3000) {
+  const timer = useRef(null);
+  const stop = () => clearTimeout(timer.current);
+  return {
+    onPointerDown: () => { stop(); timer.current = setTimeout(onLong, ms); },
+    onPointerUp: stop,
+    onPointerLeave: stop,
+    onPointerCancel: stop,
+    onContextMenu: (e) => e.preventDefault(),
+  };
+}
+
 export default function Home({ onStart }) {
+  const [setup, setSetup] = useState(false);
+  const hold = useLongPress(() => setSetup(true));
+  // Never let the Start button fall off a short or oddly sized board screen.
+  const panelRef = useRef(null);
+  const contentRef = useRef(null);
+  useFitToHeight(panelRef, contentRef);
   return (
     <div className="screen home">
       <div className="home-art" aria-hidden="true">
@@ -63,8 +84,9 @@ export default function Home({ onStart }) {
           </button>
         )}
       </div>
-      <main className="home-panel">
-        <Logo size="lg" tagline />
+      <main className="home-panel" ref={panelRef}>
+        <div className="home-content" ref={contentRef}>
+        <div className="home-logo" {...hold}><Logo size="lg" tagline /></div>
         <div className="home-copy">
           <h1>{INSTITUTION.appTitle}</h1>
           <p>{INSTITUTION.appSubtitle}</p>
@@ -74,9 +96,11 @@ export default function Home({ onStart }) {
           <span>START TEACHING</span>
           <Icon name="arrow" size={52} stroke={2} />
         </button>
+        </div>
       </main>
       <UpdateStatus />
       <Ribbon className="home-ribbon" />
+      {setup && <AiSetupDialog onClose={() => setSetup(false)} />}
     </div>
   );
 }
