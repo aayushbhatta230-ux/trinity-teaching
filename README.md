@@ -154,7 +154,8 @@ or was worked out by AI. AI practice questions only fill gaps and are labelled.
 The slide text is read when a PDF is uploaded. Older uploads are read the first time AI is used. Scanned
 slides that are only pictures cannot be searched.
 
-AI runs through the college's own small server, which holds the API key and the past-paper bank.
+AI runs through the college's own small server on free models (Google Gemini free tier, with
+Cloudflare Workers AI as a backup). The server also keeps the past-paper bank.
 Setup, adding past papers and costs: [server/README.md](server/README.md). To turn AI on for a
 board, press and hold the logo on the home screen for 3 seconds.
 

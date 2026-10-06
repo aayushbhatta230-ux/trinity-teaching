@@ -3,16 +3,15 @@
 //
 //   npm run ingest -- --exam IOE --year 2079 --file "IOE 2079.pdf" [--key "IOE 2079 key.pdf"] [--dry-run]
 //
-// Reads the PDF with Claude, pulls out every MCQ with its options, answer (from the official
+// Reads the PDF with Google Gemini (free tier), pulls out every MCQ with its options, answer (from the official
 // key when the paper or --key file has one) and the matching app subject/portion, then sends
-// them to the AI server. Needs ANTHROPIC_API_KEY, and AI_SERVER + ADMIN_TOKEN unless --dry-run.
+// them to the AI server. Needs GEMINI_API_KEY (free, aistudio.google.com/apikey), and AI_SERVER + ADMIN_TOKEN unless --dry-run.
 // --dry-run only writes <file>.questions.json so the team can check it first; a checked
 // JSON file can be sent later with --from-json <file>.questions.json.
 import fs from 'node:fs';
 import path from 'node:path';
-import Anthropic from '@anthropic-ai/sdk';
 
-const MODEL = 'claude-opus-5-5';
+const MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash';
 const EXAMS = ['CEE', 'IOE', 'IOM'];
 const PORTIONS = {
   physics: ['phy.mechanics', 'phy.electricity', 'phy.thermo'],
@@ -34,14 +33,12 @@ function args() {
 
 const SCHEMA = {
   type: 'object',
-  additionalProperties: false,
   required: ['questions'],
   properties: {
     questions: {
       type: 'array',
       items: {
         type: 'object',
-        additionalProperties: false,
         required: ['qno', 'subject', 'portion', 'topic', 'question', 'options', 'answer', 'answer_source', 'difficulty'],
         properties: {
           qno: { type: 'string' },
@@ -74,41 +71,38 @@ For each question:
 Skip anything that is not an MCQ with four options. Do not invent or reword questions.`;
 
 async function extract({ file, key, exam, year }) {
-  const client = new Anthropic();
-  const doc = (p) => ({
-    type: 'document',
-    source: { type: 'base64', media_type: 'application/pdf', data: fs.readFileSync(p).toString('base64') },
-    title: path.basename(p),
-  });
-  const content = [doc(file)];
-  if (key) content.push(doc(key));
-  content.push({ type: 'text', text: PROMPT(exam, year) + (key ? '\n\nThe second document is the official answer key.' : '') });
+  if (!process.env.GEMINI_API_KEY) throw new Error('Set GEMINI_API_KEY (free key from https://aistudio.google.com/apikey).');
+  const pdf = (p) => ({ inline_data: { mime_type: 'application/pdf', data: fs.readFileSync(p).toString('base64') } });
+  const parts = [pdf(file)];
+  if (key) parts.push(pdf(key));
+  parts.push({ text: PROMPT(exam, year) + (key ? '\n\nThe second document is the official answer key.' : '') });
 
-  let message;
-  try {
-    const stream = client.beta.messages.stream({
-      model: MODEL,
-      max_tokens: 64000,
-      betas: ['server-side-fallback-2026-07-01'],
-      fallbacks: 'default',
-      output_config: { effort: 'high', format: { type: 'json_schema', schema: SCHEMA } },
-      messages: [{ role: 'user', content }],
+  for (let attempt = 1; ; attempt++) {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts }],
+        generationConfig: { responseMimeType: 'application/json', responseJsonSchema: SCHEMA, maxOutputTokens: 65536, temperature: 0.1 },
+      }),
     });
-    message = await stream.finalMessage();
-  } catch (e) {
-    if (e instanceof Anthropic.AuthenticationError) throw new Error('ANTHROPIC_API_KEY is missing or wrong.');
-    if (e instanceof Anthropic.RateLimitError) throw new Error('Rate limited by the AI service. Wait a minute and run again.');
-    if (e instanceof Anthropic.APIError) throw new Error(`AI service error ${e.status}: ${e.message}`);
-    throw e;
+    const data = await res.json().catch(() => ({}));
+    if ((res.status === 429 || res.status >= 500) && attempt < 4) {
+      console.log(`Gemini is busy (${res.status}); waiting a minute (free tier limit)…`);
+      await new Promise((r) => setTimeout(r, 60000));
+      continue;
+    }
+    if (!res.ok) throw new Error(`Gemini error ${res.status}: ${data.error?.message || 'unknown'}`);
+    const cand = data.candidates?.[0];
+    if (!cand) throw new Error('Gemini declined to read this paper.');
+    if (cand.finishReason === 'MAX_TOKENS') throw new Error('The paper is too long for one run. Split the PDF (e.g. by subject) and run each part.');
+    const text = (cand.content?.parts || []).map((p) => p.text || '').join('');
+    const { questions } = JSON.parse(text.replace(/^\s*```(?:json)?\s*|\s*```\s*$/g, ''));
+    console.log(`Read ${questions.length} questions.`);
+    return questions
+      .filter((q) => Array.isArray(q.options) && q.options.length === 4)
+      .map((q) => ({ ...q, answerSource: q.answer_source }));
   }
-  if (message.stop_reason === 'refusal') throw new Error('The AI declined to read this paper.');
-  if (message.stop_reason === 'max_tokens') throw new Error('The paper is too long for one run. Split the PDF (e.g. by subject) and run each part.');
-  const text = message.content.filter((b) => b.type === 'text').map((b) => b.text).join('');
-  const { questions } = JSON.parse(text);
-  console.log(`Read ${questions.length} questions (${message.usage.input_tokens} input + ${message.usage.output_tokens} output tokens).`);
-  return questions
-    .filter((q) => q.options.length === 4)
-    .map((q) => ({ ...q, answerSource: q.answer_source }));
 }
 
 async function upload({ exam, year, source, questions }) {
