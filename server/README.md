@@ -17,6 +17,17 @@ Any key stays on the server, never on a board or in the public app download.
   Gemini answers first. If its free limit is reached for the minute or the day, Workers AI answers instead.
 - A college-wide daily limit (`DAILY_LIMIT`, default 400 requests) keeps usage inside the free limits.
 
+## What the AI knows
+
+[src/syllabus.js](src/syllabus.js) holds the official entrance syllabi, summarised unit by unit:
+- **CEE (MECEE-BL):** Medical Education Commission syllabus, third revision of 28 April 2026, with the number of questions per unit.
+- **IOM:** TU Institute of Medicine programmes admit through the same MEC exam (programme groups II and III weightage).
+- **IOE:** the B.E./B.Arch. entrance syllabus, with subject marks and chapter topics.
+
+With every request the AI gets the open chapter's slides, the syllabus of the exams that test that subject, and any matching past questions. Each subject is offered only the exams that test it: biology goes with CEE and IOM, mathematics and English with IOE. Practice questions are written in the chosen exam's style for a syllabus unit the chapter covers, and are labelled "AI practice · IOE style" and so on. Real past questions always come first once papers are added.
+
+If a syllabus is revised, update `src/syllabus.js` and run `npm run deploy`.
+
 ## One-time setup
 
 You need a free Cloudflare account. For better answers, also get a free Gemini key at

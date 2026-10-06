@@ -43,6 +43,8 @@ export function quiz({ context, count, past }) {
       answer: 'A',
       explanation: `(demo) Taken from slide ${s.n}.`,
       slide: s.n,
+      style: 'CEE',
+      unit: '(demo unit)',
     });
   }
   return { items };

@@ -14,9 +14,18 @@ const EXAMS = [
   { id: 'IOM', label: 'IOM' },
 ];
 const COUNTS = [5, 10, 15];
+// Which entrance exams test each subject (official syllabi).
+const TESTED = {
+  physics: ['CEE', 'IOE', 'IOM'],
+  chemistry: ['CEE', 'IOE', 'IOM'],
+  biology: ['CEE', 'IOM'],
+  mathematics: ['IOE'],
+  english: ['IOE'],
+};
 
 export default function QuizOverlay({ sel, rec, getSlides, page, onGoto, onClose }) {
-  const [exams, setExams] = useState(EXAMS.map((e) => e.id));
+  const offered = EXAMS.filter((e) => (TESTED[sel.subject] || []).includes(e.id));
+  const [exams, setExams] = useState(offered.map((e) => e.id));
   const [count, setCount] = useState(10);
   const [state, setState] = useState({ status: 'setup' });
   const [index, setIndex] = useState(0);
@@ -56,11 +65,12 @@ export default function QuizOverlay({ sel, rec, getSlides, page, onGoto, onClose
 
         {(state.status === 'setup' || state.status === 'busy') && (
           <div className="ai-body quiz-setup">
-            <p className="quiz-lead">Toughest <b>real past questions</b> that match <b>{rec.title}</b>, hardest first.</p>
+            <p className="quiz-lead">Toughest <b>real past questions</b> that match <b>{rec.title}</b>, hardest first, then practice questions on the official entrance syllabus.</p>
+            {!offered.length && <div className="quiz-note">The CEE, IOE and IOM entrance exams do not test this subject.</div>}
             <div className="quiz-row">
               <span className="field-label">Entrance exams</span>
               <div className="ai-chips">
-                {EXAMS.map((e) => (
+                {offered.map((e) => (
                   <button key={e.id} className={`btn-secondary ${exams.includes(e.id) ? 'is-on' : ''}`} onClick={() => toggle(e.id)}>
                     {exams.includes(e.id) && <Icon name="check" size={30} stroke={2.5} />}{e.label}
                   </button>
@@ -76,7 +86,7 @@ export default function QuizOverlay({ sel, rec, getSlides, page, onGoto, onClose
               </div>
             </div>
             {state.error && <div className="dialog-error" role="alert"><Icon name="alert" size={36} /> {state.error}</div>}
-            <button className="btn-primary btn-wide" onClick={start} disabled={!exams.length || state.status === 'busy'}>
+            <button className="btn-primary btn-wide" onClick={start} disabled={!exams.length || !offered.length || state.status === 'busy'}>
               {state.status === 'busy' ? <><span className="spinner" /> Choosing the toughest questions…</> : <><Icon name="trophy" size={44} /> Start quiz</>}
             </button>
           </div>

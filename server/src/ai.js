@@ -4,6 +4,8 @@
 // Gemini is tried first; if it is rate-limited or down, Workers AI answers instead.
 // Every answer is grounded in the chapter's slides and the shortlisted past questions.
 
+import { syllabusBlock } from './syllabus.js';
+
 export const MODEL = 'gemini (free) + workers-ai fallback';
 const GEMINI_DEFAULT = 'gemini-3.5-flash';
 const CF_DEFAULT = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
@@ -11,7 +13,7 @@ const CF_DEFAULT = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
 const RULES_COMMON = `You work inside Trinity Teaching, the classroom app used on interactive boards at Trinity International SS & College, Kathmandu, for +2 Science. A teacher is teaching one chapter, and the students are preparing for the CEE (MECEE), IOE and IOM entrance exams.
 
 Ground rules:
-- Use only the material given here: the teacher's SLIDES (numbered) and the PAST QUESTIONS (real CEE/MECEE, IOE and IOM entrance questions, each with an id). Do not add facts that are not in them.
+- Use only the material given here: the teacher's SLIDES (numbered), the PAST QUESTIONS (real CEE/MECEE, IOE and IOM entrance questions, each with an id) and the ENTRANCE EXAM SYLLABUS (official units, question counts and exam style). For answers, do not add facts that are not in the slides.
 - Never invent an exam, a year or a past question. Only ids from PAST QUESTIONS are real past questions.
 - Write for a classroom board: short, clear sentences, plain text with line breaks. Write formulas in plain Unicode, e.g. ε = −dΦ/dt, v² = u² + 2as. No markdown headings or tables.
 - Reply with JSON only, matching the requested shape.`;
@@ -21,7 +23,7 @@ const ASK_RULES = `${RULES_COMMON}
 You receive one request from the teacher and choose exactly one action:
 - "goto_slide": they want to open or see a slide about something. Set slide to the best matching slide number and write a one-line answer naming it.
 - "show_questions": they want MCQs or past questions. Put up to 10 ids from PAST QUESTIONS in question_ids, most relevant and hardest first, and a one-line answer. If none fit, use "not_in_material".
-- "answer": a definition, formula, explanation, comparison or summary. Answer from the slides in at most 120 words and list the slide numbers you used in cited_slides.
+- "answer": a definition, formula, explanation, comparison or summary. Answer from the slides in at most 120 words and list the slide numbers you used in cited_slides. Questions about the entrance exams (which unit this chapter belongs to, how many questions it carries, the exam format) are answered from the ENTRANCE EXAM SYLLABUS.
 - "not_in_material": the slides and past questions do not cover it. Say so in one or two sentences and mention what the chapter does cover.
 Fields that do not apply to the chosen action: slide null, cited_slides [], question_ids [].`;
 
@@ -32,8 +34,10 @@ Build a classroom quiz of the requested length for this chapter.
 - Prefer the toughest ones: multi-step numericals, conceptual traps, questions that combine ideas. Order the quiz hardest first.
 - Use past questions exactly as given: set question_id and leave question and options null. Never change their wording, options or answer.
 - If a past question has no answer in the key, solve it carefully step by step and give your answer; the app labels it "answer worked out by AI".
-- Only if there are not enough suitable past questions, add practice questions you write yourself in the same style and difficulty, based strictly on the SLIDES. For those set question_id null and fill question, four options and answer. Never present a practice question as a past question.
-- For every item give a short explanation (one or two sentences) of why the answer is correct, and the related slide number if there is one.`;
+- Only if there are not enough suitable past questions, add practice questions you write yourself. Each must test a topic that is both in the SLIDES and in a unit of the ENTRANCE EXAM SYLLABUS for the chosen exams, written in that exam's question style at the hardest level its paper uses (IOE: multi-step numericals; CEE/IOM: application-level items with close distractors). Spread them over the chosen exams and favour units with more questions. Check every calculation; exactly one option must be correct. For those set question_id null, fill question, four options and answer, and set style to the exam and unit to the syllabus unit. Never present a practice question as a past question.
+- For every item give a short explanation (one or two sentences) of why the answer is correct, and the related slide number if there is one.
+- Options are the full answer texts, never the letters. Example of one practice item:
+  {"question_id": null, "question": "A 0.5 m rod moves at 4 m/s at right angles to a 0.2 T field. The emf across its ends is", "options": ["0.1 V", "0.4 V", "0.8 V", "4 V"], "answer": "B", "explanation": "e = Blv = 0.2 × 0.5 × 4 = 0.4 V.", "slide": 2, "style": "IOE", "unit": "Electricity and magnetism"}`;
 
 const ASK_SCHEMA = {
   type: 'object',
@@ -55,14 +59,16 @@ const QUIZ_SCHEMA = {
       type: 'array',
       items: {
         type: 'object',
-        required: ['question_id', 'question', 'options', 'answer', 'explanation', 'slide'],
+        required: ['question_id', 'question', 'options', 'answer', 'explanation', 'slide', 'style', 'unit'],
         properties: {
           question_id: { type: ['integer', 'null'] },
           question: { type: ['string', 'null'] },
-          options: { type: ['array', 'null'], items: { type: 'string' } },
+          options: { type: ['array', 'null'], minItems: 4, maxItems: 4, items: { type: 'string', description: 'The full text of this answer option (a value, statement or expression), never just a letter.' } },
           answer: { type: 'string', enum: ['A', 'B', 'C', 'D'] },
           explanation: { type: 'string' },
           slide: { type: ['integer', 'null'] },
+          style: { type: ['string', 'null'], enum: ['CEE', 'IOE', 'IOM', null] },
+          unit: { type: ['string', 'null'] },
         },
       },
     },
@@ -93,8 +99,24 @@ function parseJson(text) {
 
 class Busy extends Error {}
 
-async function gemini(env, { system, user, schema, maxTokens }) {
-  const model = env.GEMINI_MODEL || GEMINI_DEFAULT;
+// If the configured model is unavailable, busy or renamed, these free models are tried next.
+const GEMINI_ALTERNATES = ['gemini-flash-latest', 'gemini-flash-lite-latest'];
+
+async function gemini(env, req) {
+  const names = [...new Set([env.GEMINI_MODEL || GEMINI_DEFAULT, ...GEMINI_ALTERNATES])];
+  const tried = [];
+  for (const model of names) {
+    try {
+      return { model, data: await geminiModel(env, model, req), tried };
+    } catch (e) {
+      if (!(e instanceof Busy)) throw e;
+      tried.push(e.message);
+    }
+  }
+  throw new Busy(tried.join(' | ') || 'no gemini model');
+}
+
+async function geminiModel(env, model, { system, user, schema, maxTokens }) {
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY },
@@ -104,11 +126,12 @@ async function gemini(env, { system, user, schema, maxTokens }) {
       generationConfig: { responseMimeType: 'application/json', responseJsonSchema: schema, maxOutputTokens: maxTokens, temperature: 0.2 },
     }),
   });
-  if (res.status === 429 || res.status >= 500) throw new Busy(`gemini ${res.status}`);
   const data = await res.json().catch(() => ({}));
+  const why = `gemini ${model}: ${res.status} ${(data.error?.message || '').slice(0, 120)}`;
+  if (res.status === 429 || res.status === 404 || res.status >= 500) throw new Busy(why);
   if (!res.ok) {
     if (res.status === 400 || res.status === 403) throw new AIError(`The AI server is not set up correctly (Gemini: ${data.error?.message || res.status}).`, 500);
-    throw new Busy(`gemini ${res.status}`);
+    throw new Busy(`gemini ${model}: ${res.status} ${data.error?.message || ''}`);
   }
   const cand = data.candidates?.[0];
   if (!cand) throw new AIError('The AI declined this request.', 422);
@@ -125,20 +148,26 @@ async function workersAi(env, { system, user, schema, maxTokens }) {
     max_tokens: Math.min(maxTokens, 8000),
     temperature: 0.2,
   });
-  return parseJson(out?.response ?? out);
+  return { model: env.CF_MODEL || CF_DEFAULT, data: parseJson(out?.response ?? out) };
 }
 
 /** Gemini first; on rate limits or outages fall back to Workers AI. */
-async function callModel(env, { rules, context, userText, schema, maxTokens }) {
-  const req = { system: `${rules}\n\n${slidesBlock(context)}`, user: userText, schema, maxTokens };
+async function callModel(env, { rules, context, exams, userText, schema, maxTokens }) {
+  const syl = syllabusBlock(context.subject, exams);
+  const req = { system: `${rules}\n\n${slidesBlock(context)}${syl ? `\n\n${syl}` : ''}`, user: userText, schema, maxTokens };
   const order = [env.GEMINI_API_KEY && gemini, env.AI && workersAi].filter(Boolean);
   if (!order.length) throw new AIError('The AI server has no AI model set up.', 500);
+  const skipped = [];
   for (const fn of order) {
     try {
-      return await fn(env, req);
+      const { model, data, tried = [] } = await fn(env, req);
+      skipped.push(...tried);
+      // Which free model answered (and why an earlier one was skipped), for support.
+      Object.defineProperty(data, 'meta', { value: { model, skipped }, enumerable: false });
+      return data;
     } catch (e) {
       if (e instanceof AIError) throw e;
-      // Busy or network trouble: try the next free model.
+      skipped.push(String(e.message || e).slice(0, 200)); // busy or unreachable: try the next free model
     }
   }
   throw new AIError("The free AI models are busy or today's free limit is used up. Try again in a minute.", 429);
@@ -154,11 +183,12 @@ export function ask(env, { context, query, pastList }) {
   });
 }
 
-export function quiz(env, { context, count, pastList }) {
+export function quiz(env, { context, count, pastList, exams }) {
   return callModel(env, {
     rules: QUIZ_RULES,
     context,
-    userText: `PAST QUESTIONS\n${pastList || '(none available for this chapter yet)'}\n\nBuild a quiz of ${count} questions for this chapter.`,
+    exams,
+    userText: `PAST QUESTIONS\n${pastList || '(none available for this chapter yet)'}\n\nBuild a quiz of ${count} questions for this chapter for these exams: ${(exams || []).join(', ')}.`,
     schema: QUIZ_SCHEMA,
     maxTokens: 16000,
   });

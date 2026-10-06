@@ -4,14 +4,14 @@ const LETTERS = ['A', 'B', 'C', 'D'];
 
 /** "IOE 2079 · Q23" for a real past question, "AI practice question" otherwise. */
 export function sourceLabel(q) {
-  if (q.kind !== 'past') return 'AI practice question';
+  if (q.kind !== 'past') return q.style ? `AI practice · ${q.style} style` : 'AI practice question';
   return [`${q.exam}${q.year ? ` ${q.year}` : ''}`, q.qno ? `Q${q.qno}` : ''].filter(Boolean).join(' · ');
 }
 
 export const ANSWER_NOTE = {
   key: 'Official answer key',
   ai: 'Answer worked out by AI — not from the official key',
-  practice: 'Practice question written by AI from these slides',
+  practice: 'Practice question written by AI from these slides and the official entrance syllabus',
 };
 
 /**
@@ -32,7 +32,7 @@ export default function QuestionCard({ q, number, onAnswer, onSlide, big }) {
       <div className="qcard-top">
         {number != null && <span className="qcard-num">{number}</span>}
         <span className={`qcard-source ${q.kind === 'past' ? 'is-past' : 'is-practice'}`}>{sourceLabel(q)}</span>
-        {q.topic && <span className="qcard-topic">{q.topic}</span>}
+        {(q.topic || q.unit) && <span className="qcard-topic">{q.topic || q.unit}</span>}
       </div>
       <p className="qcard-question">{q.question}</p>
       <div className="qcard-options">

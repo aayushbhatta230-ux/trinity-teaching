@@ -8,6 +8,7 @@
 import * as ai from './ai.js';
 import * as demo from './demo.js';
 import { chapterTerms, terms, shortlist, present, listForPrompt } from './bank.js';
+import { examsFor } from './syllabus.js';
 
 const CORS = {
   'access-control-allow-origin': '*',
@@ -83,6 +84,7 @@ async function handleAsk(req, env) {
     citedSlides: (r.cited_slides || []).filter(slideOk),
     questions: (r.question_ids || []).map((id) => byId.get(id)).filter(Boolean).map(present),
     demo: env.DEMO_MODE === '1',
+    via: r.meta,
   });
 }
 
@@ -91,13 +93,17 @@ async function handleQuiz(req, env) {
   const context = readContext(body);
   if (!context) return fail('Missing chapter.', 400);
   const count = Math.min(20, Math.max(3, Number(body?.count) || 10));
-  const exams = (Array.isArray(body?.exams) ? body.exams : EXAMS).filter((e) => EXAMS.includes(e));
+  // Only exams that actually test this subject (e.g. biology: CEE and IOM; mathematics: IOE).
+  const tested = examsFor(context.subject);
+  if (!tested.length) return fail('No entrance exam tests this subject, so there is no quiz for it.', 400);
+  let exams = (Array.isArray(body?.exams) ? body.exams : tested).filter((e) => tested.includes(e));
+  if (!exams.length) exams = tested;
   if (!(await spend(env))) return fail("Today's AI limit for the college has been reached. It resets tomorrow.", 429);
 
   const past = await shortlist(env.DB, { subject: context.subject, portion: context.portion, exams, weights: chapterTerms(context), limit: 80 });
   const r = env.DEMO_MODE === '1'
     ? demo.quiz({ context, count, past })
-    : await ai.quiz(env, { context, count, pastList: listForPrompt(past) });
+    : await ai.quiz(env, { context, count, exams, pastList: listForPrompt(past) });
 
   const byId = new Map(past.map((p) => [p.id, p]));
   const used = new Set();
@@ -111,11 +117,18 @@ async function handleQuiz(req, env) {
       const q = present(p);
       // The official key wins; otherwise the AI's worked answer, labelled as such.
       items.push({ ...q, answer: q.answer || it.answer, answerSource: q.answer ? q.answerSource : 'ai', explanation: it.explanation, slide: it.slide });
-    } else if (it.question && Array.isArray(it.options) && it.options.length === 4) {
-      items.push({ kind: 'practice', question: it.question, options: it.options, answer: it.answer, answerSource: 'practice', explanation: it.explanation, slide: it.slide });
+    } else if (it.question && goodOptions(it.options)) {
+      items.push({ kind: 'practice', style: exams.includes(it.style) ? it.style : null, unit: it.unit || null, question: it.question, options: it.options, answer: it.answer, answerSource: 'practice', explanation: it.explanation, slide: it.slide });
     }
   }
-  return json({ items, pastAvailable: past.length, demo: env.DEMO_MODE === '1' });
+  return json({ items, exams, pastAvailable: past.length, demo: env.DEMO_MODE === '1', via: r.meta });
+}
+
+/** Four distinct, real options (not just "A", "B" …). */
+function goodOptions(o) {
+  if (!Array.isArray(o) || o.length !== 4) return false;
+  const t = o.map((x) => String(x || '').trim());
+  return t.every((x) => x && !/^\(?[A-Da-d]\)?\.?$/.test(x)) && new Set(t.map((x) => x.toLowerCase())).size === 4;
 }
 
 // ---------- admin: past papers ----------
