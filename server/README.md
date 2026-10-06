@@ -1,7 +1,7 @@
 # Trinity Teaching AI server
 
 A small server (a Cloudflare Worker with a D1 database) behind **Ask AI** and **AI Quiz** in the app.
-It uses **free AI models only** and keeps the bank of CEE (MECEE), IOE and IOM past questions.
+It uses **free AI models only** and keeps the bank of IOE and IOM past questions.
 Any key stays on the server, never on a board or in the public app download.
 
 - **Ask AI**: definitions, formulas, explanations and past MCQs, answered only from the open
@@ -20,11 +20,10 @@ Any key stays on the server, never on a board or in the public app download.
 ## What the AI knows
 
 [src/syllabus.js](src/syllabus.js) holds the official entrance syllabi, summarised unit by unit:
-- **CEE (MECEE-BL):** Medical Education Commission syllabus, third revision of 28 April 2026, with the number of questions per unit.
-- **IOM:** TU Institute of Medicine programmes admit through the same MEC exam (programme groups II and III weightage).
+- **IOM (medical):** the medical entrance is held as the Medical Education Commission's common entrance. This is its syllabus, third revision of 28 April 2026, with the number of questions per unit.
 - **IOE:** the B.E./B.Arch. entrance syllabus, with subject marks and chapter topics.
 
-With every request the AI gets the open chapter's slides, the syllabus of the exams that test that subject, and any matching past questions. Each subject is offered only the exams that test it: biology goes with CEE and IOM, mathematics and English with IOE. Practice questions are written in the chosen exam's style for a syllabus unit the chapter covers, and are labelled "AI practice · IOE style" and so on. Real past questions always come first once papers are added.
+With every request the AI gets the open chapter's slides, the syllabus of the exams that test that subject, and any matching past questions. Physical group classes get IOE. Biology group classes get IOM and IOE, each subject only where that exam tests it: biology is IOM only, mathematics and English are IOE only. Practice questions are written in the chosen exam's style for a syllabus unit the chapter covers, and are labelled "AI practice · IOE style" and so on. Real past questions always come first once papers are added.
 
 If a syllabus is revised, update `src/syllabus.js` and run `npm run deploy`.
 
@@ -73,7 +72,7 @@ set ADMIN_TOKEN=...
 npm run ingest -- --exam IOE --year 2079 --file "papers/IOE 2079.pdf" --key "papers/IOE 2079 key.pdf"
 ```
 
-`--exam` is `CEE`, `IOE` or `IOM`. Add `--dry-run` to only write `<file>.questions.json` so a
+`--exam` is `IOE` or `IOM`. Add `--dry-run` to only write `<file>.questions.json` so a
 teacher can check it. Then send the checked file with `--from-json "<file>.questions.json"`.
 Reading papers is free with the Gemini key. If the free per-minute limit is hit, the script waits and retries.
 

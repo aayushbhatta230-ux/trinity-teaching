@@ -10,10 +10,10 @@ export const MODEL = 'gemini (free) + workers-ai fallback';
 const GEMINI_DEFAULT = 'gemini-3.5-flash';
 const CF_DEFAULT = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
 
-const RULES_COMMON = `You work inside Trinity Teaching, the classroom app used on interactive boards at Trinity International SS & College, Kathmandu, for +2 Science. A teacher is teaching one chapter, and the students are preparing for the CEE (MECEE), IOE and IOM entrance exams.
+const RULES_COMMON = `You work inside Trinity Teaching, the classroom app used on interactive boards at Trinity International SS & College, Kathmandu, for +2 Science. A teacher is teaching one chapter, and the students are preparing for the entrance exams after Grade 12: IOE (engineering) and IOM (medical).
 
 Ground rules:
-- Use only the material given here: the teacher's SLIDES (numbered), the PAST QUESTIONS (real CEE/MECEE, IOE and IOM entrance questions, each with an id) and the ENTRANCE EXAM SYLLABUS (official units, question counts and exam style). For answers, do not add facts that are not in the slides.
+- Use only the material given here: the teacher's SLIDES (numbered), the PAST QUESTIONS (real IOE and IOM entrance questions, each with an id) and the ENTRANCE EXAM SYLLABUS (official units, question counts and exam style). For answers, do not add facts that are not in the slides.
 - Never invent an exam, a year or a past question. Only ids from PAST QUESTIONS are real past questions.
 - Write for a classroom board: short, clear sentences, plain text with line breaks. Write formulas in plain Unicode, e.g. ε = −dΦ/dt, v² = u² + 2as. No markdown headings or tables.
 - Reply with JSON only, matching the requested shape.`;
@@ -34,7 +34,7 @@ Build a classroom quiz of the requested length for this chapter.
 - Prefer the toughest ones: multi-step numericals, conceptual traps, questions that combine ideas. Order the quiz hardest first.
 - Use past questions exactly as given: set question_id and leave question and options null. Never change their wording, options or answer.
 - If a past question has no answer in the key, solve it carefully step by step and give your answer; the app labels it "answer worked out by AI".
-- Only if there are not enough suitable past questions, add practice questions you write yourself. Each must test a topic that is both in the SLIDES and in a unit of the ENTRANCE EXAM SYLLABUS for the chosen exams, written in that exam's question style at the hardest level its paper uses (IOE: multi-step numericals; CEE/IOM: application-level items with close distractors). Spread them over the chosen exams and favour units with more questions. Check every calculation; exactly one option must be correct. For those set question_id null, fill question, four options and answer, and set style to the exam and unit to the syllabus unit. Never present a practice question as a past question.
+- Only if there are not enough suitable past questions, add practice questions you write yourself. Each must test a topic that is both in the SLIDES and in a unit of the ENTRANCE EXAM SYLLABUS for the chosen exams, written in that exam's question style at the hardest level its paper uses (IOE: multi-step numericals; IOM: application-level items with close distractors). Spread them over the chosen exams and favour units with more questions. Check every calculation; exactly one option must be correct. For those set question_id null, fill question, four options and answer, and set style to the exam and unit to the syllabus unit. Never present a practice question as a past question.
 - For every item give a short explanation (one or two sentences) of why the answer is correct, and the related slide number if there is one.
 - Options are the full answer texts, never the letters. Example of one practice item:
   {"question_id": null, "question": "A 0.5 m rod moves at 4 m/s at right angles to a 0.2 T field. The emf across its ends is", "options": ["0.1 V", "0.4 V", "0.8 V", "4 V"], "answer": "B", "explanation": "e = Blv = 0.2 × 0.5 × 4 = 0.4 V.", "slide": 2, "style": "IOE", "unit": "Electricity and magnetism"}`;
@@ -67,7 +67,7 @@ const QUIZ_SCHEMA = {
           answer: { type: 'string', enum: ['A', 'B', 'C', 'D'] },
           explanation: { type: 'string' },
           slide: { type: ['integer', 'null'] },
-          style: { type: ['string', 'null'], enum: ['CEE', 'IOE', 'IOM', null] },
+          style: { type: ['string', 'null'], enum: ['IOE', 'IOM', null] },
           unit: { type: ['string', 'null'] },
         },
       },

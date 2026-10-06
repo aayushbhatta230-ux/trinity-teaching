@@ -19,7 +19,7 @@ const CORS = {
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json; charset=utf-8', ...CORS } });
 const fail = (message, status) => json({ error: message }, status);
 
-const EXAMS = ['CEE', 'IOE', 'IOM'];
+const EXAMS = ['IOE', 'IOM'];
 const SUBJECTS = ['physics', 'chemistry', 'mathematics', 'biology', 'english'];
 const MAX_SLIDE_CHARS = 120000;
 
@@ -38,6 +38,9 @@ async function spend(env) {
   ).bind(day).first();
   return row.count <= Number(env.DAILY_LIMIT || 400);
 }
+
+/** The model's array, or [] if it sent something else. */
+const list = (x) => (Array.isArray(x) ? x : []);
 
 /** Validates and trims the chapter context the app sends. */
 function readContext(body) {
@@ -81,8 +84,8 @@ async function handleAsk(req, env) {
     action: r.action,
     answer: r.answer,
     slide: slideOk(r.slide) ? r.slide : null,
-    citedSlides: (r.cited_slides || []).filter(slideOk),
-    questions: (r.question_ids || []).map((id) => byId.get(id)).filter(Boolean).map(present),
+    citedSlides: list(r.cited_slides).filter(slideOk),
+    questions: list(r.question_ids).map((id) => byId.get(id)).filter(Boolean).map(present),
     demo: env.DEMO_MODE === '1',
     via: r.meta,
   });
@@ -93,7 +96,7 @@ async function handleQuiz(req, env) {
   const context = readContext(body);
   if (!context) return fail('Missing chapter.', 400);
   const count = Math.min(20, Math.max(3, Number(body?.count) || 10));
-  // Only exams that actually test this subject (e.g. biology: CEE and IOM; mathematics: IOE).
+  // Only exams that actually test this subject (e.g. Biology group: IOM and IOE; Physical group: IOE).
   const tested = examsFor(context.subject, context.group);
   if (!tested.length) return fail('The entrance exams for this group do not test this subject, so there is no quiz for it.', 400);
   let exams = (Array.isArray(body?.exams) ? body.exams : tested).filter((e) => tested.includes(e));
@@ -108,7 +111,8 @@ async function handleQuiz(req, env) {
   const byId = new Map(past.map((p) => [p.id, p]));
   const used = new Set();
   const items = [];
-  for (const it of r.items || []) {
+  for (const it of list(r.items)) {
+    if (!it || typeof it !== 'object') continue; // skip anything malformed from the model
     if (items.length >= count) break;
     if (it.question_id != null) {
       const p = byId.get(it.question_id);
@@ -197,6 +201,7 @@ export default {
       return fail('Not found.', 404);
     } catch (e) {
       if (e instanceof ai.AIError) return fail(e.message, e.status);
+      console.error('request failed', url.pathname, e?.stack || e);
       return fail('Something went wrong on the AI server.', 500);
     }
   },

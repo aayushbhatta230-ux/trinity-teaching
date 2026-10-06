@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Adds a past entrance paper (CEE/MECEE, IOE or IOM) to the AI question bank.
+// Adds a past entrance paper (IOE or IOM) to the AI question bank.
 //
 //   npm run ingest -- --exam IOE --year 2079 --file "IOE 2079.pdf" [--key "IOE 2079 key.pdf"] [--dry-run]
 //
@@ -21,7 +21,7 @@ if (fs.existsSync(saved)) {
 }
 
 const MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash';
-const EXAMS = ['CEE', 'IOE', 'IOM'];
+const EXAMS = ['IOE', 'IOM'];
 const PORTIONS = {
   physics: ['phy.mechanics', 'phy.electricity', 'phy.thermo'],
   chemistry: ['chem.physical', 'chem.organic', 'chem.inorganic'],

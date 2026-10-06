@@ -147,8 +147,8 @@ The viewer is read-only on purpose. It has no editing, pen, annotation or highli
 ## Ask AI and AI Quiz
 
 In the viewer, **Ask AI** answers questions about the open chapter: formulas, definitions,
-explanations and past MCQs. It answers only from the teacher's slides and real CEE (MECEE), IOE
-and IOM past questions, and shows which slides it used. "Take me to the slide about Lenz's law"
+explanations and past MCQs. It answers only from the teacher's slides and the IOE and IOM entrance
+syllabus and past questions, and shows which slides it used. "Take me to the slide about Lenz's law"
 opens that slide; the board does this by itself, even without internet.
 
 **Quiz** builds a classroom quiz from the toughest real past questions that match the chapter.

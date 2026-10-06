@@ -1,5 +1,5 @@
 /**
- * AI Quiz: the toughest real CEE / IOE past questions that match this chapter,
+ * AI Quiz: the toughest real IOE / IOM past questions that match this chapter,
  * one at a time on the board. AI practice questions only fill gaps and are labelled.
  */
 import { useState } from 'react';
@@ -9,20 +9,20 @@ import { chapterContext, getAiConfig, quizAi } from '../lib/ai.js';
 import { useBackHandler } from '../lib/native.js';
 
 const EXAMS = [
-  { id: 'CEE', label: 'CEE (MECEE)' },
-  { id: 'IOE', label: 'IOE' },
+  { id: 'IOE', label: 'IOE (Engineering)' },
+  { id: 'IOM', label: 'IOM (Medical)' },
 ];
 const COUNTS = [5, 10, 15];
 // Which entrance exams test each subject (official syllabi) …
 const TESTED = {
-  physics: ['CEE', 'IOE'],
-  chemistry: ['CEE', 'IOE'],
-  biology: ['CEE'],
+  physics: ['IOE', 'IOM'],
+  chemistry: ['IOE', 'IOM'],
+  biology: ['IOM'],
   mathematics: ['IOE'],
   english: ['IOE'],
 };
 // … and which exams each group prepares for.
-const GROUP_EXAMS = { PHY: ['IOE'], BIO: ['CEE', 'IOE'] };
+const GROUP_EXAMS = { PHY: ['IOE'], BIO: ['IOM', 'IOE'] };
 
 export default function QuizOverlay({ sel, rec, getSlides, page, onGoto, onClose }) {
   const offered = EXAMS.filter((e) => (TESTED[sel.subject] || []).includes(e.id) && (GROUP_EXAMS[sel.group] || []).includes(e.id));

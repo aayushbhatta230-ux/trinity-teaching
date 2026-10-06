@@ -1,24 +1,17 @@
 // Entrance-exam syllabi the AI works from (summarised from the official documents):
-//   CEE  – Medical Education Commission, "Syllabus for Bachelor Level Common Entrance
-//          Examination" (MECEE-BL), third revision 28 April 2026, programme group I
-//          (MBBS, BDS, BSc Nursing/Midwifery, BASLP, B Perfusion Technology).
-//   IOM  – Since 2020 the bachelor programmes of TU Institute of Medicine admit through the same
-//          MEC common entrance. Programme group II (B Pharm, BSc MLT, BSc MIT, BPT, B Optometry,
-//          BAMS) and group III (BPH) use smaller PCB weightage; that weightage is used here.
+//   IOM  – Medical entrance (MBBS, BDS, BSc Nursing … at TU Institute of Medicine and other
+//          colleges). Since 2020 it is held as the Medical Education Commission's common entrance:
+//          "Syllabus for Bachelor Level Common Entrance Examination", third revision
+//          28 April 2026, programme group I weightage.
 //   IOE  – TU Institute of Engineering, "Detail Syllabus of B.E./B.Arch. Entrance Examination".
-// The +2 courses (NEB Grade 11–12, CDC curriculum 2076) are the prerequisite for all three.
+// The +2 courses (NEB Grade 11–12, CDC curriculum 2076) are the prerequisite for both.
 // Numbers are questions per unit in one paper.
 
 export const EXAMS = {
-  CEE: {
-    name: 'CEE (MECEE-BL, Medical Education Commission)',
-    format: '200 single-best-answer MCQs with four options, 3 hours, 1 mark each, −0.25 for a wrong answer. Items are set in the ratio 50:30:20 for recall, understanding and application.',
-    style: 'Short stems testing exact facts, definitions, named examples and one- or two-step calculations. Distractors are close variants of the right answer. Application items use realistic data.',
-  },
   IOM: {
-    name: 'IOM programmes (B Pharm, BPH, BSc MLT, BPT …) through the MEC common entrance',
-    format: '200 single-best-answer MCQs with four options, 3 hours, −0.25 for a wrong answer, 50:30:20 recall/understanding/application. PCB weightage is smaller than for MBBS, and 20 questions come from the PCL/diploma course.',
-    style: 'Same style as the CEE: fact recall with close distractors, plus short applied numericals.',
+    name: 'IOM medical entrance (MBBS, BDS, BSc Nursing …), held as the Medical Education Commission common entrance',
+    format: '200 single-best-answer MCQs with four options, 3 hours, 1 mark each, −0.25 for a wrong answer: Physics 50, Chemistry 50, Zoology 40, Botany 40, Mental Agility 20. Items are set in the ratio 50:30:20 for recall, understanding and application.',
+    style: 'Short stems testing exact facts, definitions, named examples and one- or two-step calculations. Distractors are close variants of the right answer. Application items use realistic data.',
   },
   IOE: {
     name: 'IOE B.E./B.Arch. entrance (TU Institute of Engineering)',
@@ -30,7 +23,7 @@ export const EXAMS = {
 // Units with questions per paper, and what each unit covers.
 export const SYLLABUS = {
   physics: {
-    CEE: { total: 50, units: [
+    IOM: { total: 50, units: [
       ['Mechanics', 10, 'dimensions, significant figures, vectors; kinematics and projectiles; Newton\'s laws, impulse, momentum, collisions, friction; work, energy, power; rotational dynamics (moment of inertia of a rod, radius of gyration, torque); fluids (pressure, surface tension, capillarity, Stokes, Poiseuille, Bernoulli); circular motion; SHM and forced oscillation; gravitation; elasticity (stress, strain, moduli, Poisson ratio, energy density)'],
       ['Heat and thermodynamics', 7, 'temperature and thermometers; conduction, Stefan–Boltzmann law; thermal expansion; specific and latent heat, triple point; kinetic theory, rms speed; first law and isothermal/adiabatic/isochoric/isobaric processes; second law, engines, refrigerators, entropy'],
       ['Waves and optics', 8, 'progressive waves, speed of sound in solids, liquids, gases; stationary waves, harmonics in pipes and strings; intensity, loudness, pitch, Doppler effect; mirrors, refraction, lenses, dispersion, chromatic aberration; interference and Young\'s double slit; single-slit diffraction, grating, resolving power; polarization, Brewster\'s law'],
@@ -38,7 +31,6 @@ export const SYLLABUS = {
       ['Electrostatics and capacitors', 4, 'Coulomb\'s law, electric field of point charges, induction; field, potential, potential energy, Gauss\'s law; parallel-plate capacitor, combinations, energy density, dielectrics'],
       ['Modern physics', 12, 'nucleus, mass defect, binding energy per nucleon, fission and fusion; electron in E and B fields, Millikan and J.J. Thomson; photoelectric effect; Bohr model, spectral series, de Broglie, uncertainty principle, X-rays, Bragg\'s law; radioactivity, half-life, mean life, carbon dating, medical uses and hazards; energy bands, semiconductors, p-n diode, rectifier, logic gates; particles, quarks, leptons, Higgs boson, nanotechnology, big bang, Hubble law'],
     ] },
-    IOM: { total: 40, units: [['Mechanics', 8], ['Heat and thermodynamics', 6], ['Waves and optics', 6], ['Current electricity and magnetism', 7], ['Electrostatics and capacitors', 3], ['Modern physics', 10]] },
     IOE: { total: 40, marks: 'Physics: 40 marks', units: [
       ['Mechanics', null, 'dimensions, vectors, equations of motion, projectiles, relative motion; Newton\'s laws, momentum conservation, friction; work–energy theorem, collisions; circular motion, conical pendulum, banking, gravitation, satellites, SHM, damped and forced oscillation; rotational dynamics, angular momentum; elasticity; fluids (buoyancy, surface tension, capillarity, viscosity, Stokes, Poiseuille, Reynolds number, continuity, Bernoulli)'],
       ['Heat and thermodynamics', null, 'specific and latent heat, method of mixtures, Newton\'s law of cooling, triple point; expansion; conduction, convection, radiation, black body, Stefan–Boltzmann; kinetic theory, heat capacities; first and second laws, Carnot, Otto and Diesel cycles, refrigerator, entropy'],
@@ -49,14 +41,13 @@ export const SYLLABUS = {
     ] },
   },
   chemistry: {
-    CEE: { total: 50, units: [
+    IOM: { total: 50, units: [
       ['Physical chemistry', 17, 'mole concept, stoichiometry, limiting reagent, percentage yield; atomic structure (Bohr, de Broglie, quantum numbers, Aufbau, Pauli, Hund); periodicity; bonding, VSEPR, hybridization, dipole moment, hydrogen bonding; redox balancing; gases, liquids, solids (unit cell, 7 crystal systems, 14 Bravais lattices); chemical equilibrium, Kp–Kc, Le Chatelier; volumetric analysis, normality, molarity, molality, ppm; ionic equilibrium, pH, buffers, solubility product, common ion effect; kinetics (order, zero/first-order half-life, activation energy, catalysis); electrochemistry, electrode potentials, cells; thermodynamics (enthalpies, Hess\'s law, entropy, Gibbs energy and K); nuclear chemistry'],
       ['Inorganic chemistry', 10, 'hydrogen and heavy water, oxides, ozone; ammonia, phosphine, nitric acid; halogens and hydrogen halides; carbon allotropes, CO, H2S, SO2, sulphuric acid; metallurgy (calcination, roasting, smelting, refining); alkali and alkaline-earth metals, sodium compounds; 3d transition metals, complex shapes, crystal field theory; extraction of Cu, Zn, Hg, Ag, Fe; vitriols, calomel; steel, corrosion; bio-inorganic chemistry and metal toxicity'],
       ['Organic chemistry', 17, 'IUPAC naming, isomerism, bond fission, electrophiles and nucleophiles, inductive and resonance effects; alkanes, alkenes, alkynes, octane and cetane numbers; benzene and aromaticity; haloalkanes, SN1 and SN2, chloroform, chlorobenzene; alcohols and phenol; ethers, Williamson synthesis; aldehydes, ketones, benzaldehyde; carboxylic acids and derivatives; nitro compounds; amines, Hoffmann separation, aniline; Grignard reagent'],
       ['Applied chemistry', 3, 'chemical industry; Ostwald, Haber, Contact, Solvay and diaphragm-cell processes, urea; cement, paper; uses of common elements and compounds; polymers, dyes, drugs, pesticides, fertilizers, colloids, radioisotopes'],
       ['Analytical chemistry', 3, 'tests for acid and basic radicals and functional groups, Lassaigne\'s test, biomolecule tests; separation techniques, chromatography; acid–base, redox and complexometric titrations, indicator choice'],
     ] },
-    IOM: { total: 40, units: [['Physical chemistry', 14], ['Inorganic chemistry', 7], ['Organic chemistry', 13], ['Applied chemistry', 3], ['Analytical chemistry', 3]] },
     IOE: { total: 30, marks: 'Chemistry: 30 marks', units: [
       ['Physical chemistry', null, 'chemical arithmetic, equivalent masses, limiting reactant; states of matter; atomic structure and periodic table; redox and equilibrium; volumetric analysis; ionic equilibrium, acids, bases, salts; electrochemistry; energetics, kinetics, bonding and shapes'],
       ['Inorganic chemistry', null, 'hydrogen, oxygen, ozone, water, nitrogen compounds, halogens, carbon, phosphorus, sulphur, noble gases, pollution; metallurgy, alkali and alkaline-earth metals, coinage metals; extraction of zinc, mercury, iron compounds'],
@@ -64,7 +55,7 @@ export const SYLLABUS = {
     ] },
   },
   biology: {
-    CEE: { total: 80, units: [
+    IOM: { total: 80, units: [
       ['Zoology: Evolutionary biology', 3, 'Oparin–Haldane, Miller–Urey, evidences of evolution, Lamarckism, Darwinism, neo-Darwinism, human evolution'],
       ['Zoology: Animal diversity and classification', 4, 'diagnostic features from Protozoa to Chordata'],
       ['Zoology: Animal tissues and histology', 4, 'epithelial, connective, muscular, nervous tissue'],
@@ -83,7 +74,6 @@ export const SYLLABUS = {
       ['Botany: Developmental botany', 2, 'sporogenesis and gametogenesis in angiosperms, pollination, fertilization, embryo, endosperm'],
       ['Botany: Applied botany', 3, 'plant tissue culture, genetic engineering, biofertilizers, plant breeding, food security'],
     ] },
-    IOM: { total: 80, units: 'same zoology and botany weightage as the CEE' },
   },
   mathematics: {
     IOE: { total: 50, marks: 'Mathematics: 50 marks', units: [
@@ -106,12 +96,12 @@ export const SYLLABUS = {
   },
 };
 
-/** The exams each +2 group prepares for: Physical group IOE only, Biology group CEE and IOE. */
-export const GROUP_EXAMS = { PHY: ['IOE'], BIO: ['CEE', 'IOE'] };
+/** The exams each +2 group prepares for: Physical group IOE, Biology group IOM and IOE. */
+export const GROUP_EXAMS = { PHY: ['IOE'], BIO: ['IOM', 'IOE'] };
 
 /** Entrance exams that test a subject, limited to the class's group. */
 export function examsFor(subject, group) {
-  const forGroup = GROUP_EXAMS[group] || ['CEE', 'IOE'];
+  const forGroup = GROUP_EXAMS[group] || ['IOM', 'IOE'];
   return Object.keys(SYLLABUS[subject] || {}).filter((e) => forGroup.includes(e));
 }
 
