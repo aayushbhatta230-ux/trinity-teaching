@@ -6,8 +6,13 @@ import { readFileSync } from 'node:fs';
 const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
 
 // The college AI server, built into the app so every board works without setup.
-// Read from server/.admin.env (written by server/setup.ps1, never committed).
+// From the AI_SERVER and AI_ACCESS_CODE environment variables (GitHub secrets for the
+// "Publish update" button), or server/.admin.env on a PC that ran server/setup.ps1.
+// Never committed.
 function aiDefault() {
+  if (process.env.AI_SERVER && process.env.AI_ACCESS_CODE) {
+    return { url: process.env.AI_SERVER.trim(), code: process.env.AI_ACCESS_CODE.trim() };
+  }
   try {
     const env = Object.fromEntries(readFileSync(new URL('./server/.admin.env', import.meta.url), 'utf8')
       .split(/\r?\n/).map((l) => l.match(/^(\w+)=(.*)$/)).filter(Boolean).map((m) => [m[1], m[2].trim()]));

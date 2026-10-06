@@ -1,0 +1,95 @@
+# "Publish update" button: GitHub → Actions → Publish update → Run workflow.
+# Builds the app and puts it on the in-app update channel. Installed apps (Windows and
+# Android) then update with "Check for updates" → "Restart now". No PowerShell needed.
+#
+# One-time setup (GitHub → this repository → Settings → Secrets and variables → Actions):
+#   UPDATE_TOKEN    a fine-grained GitHub token with "Contents: Read and write" on
+#                   aayushbhatta230-ux/trinity-teaching-app
+#   AI_SERVER       the college AI server address
+#   AI_ACCESS_CODE  the school access code (built into the app so boards need no AI setup)
+name: Publish update
+
+on:
+  workflow_dispatch:
+    inputs:
+      notes:
+        description: What changed (shown to nobody; for your records)
+        required: false
+        default: ''
+      min_shell:
+        description: Oldest installed app that can take this update (leave as is)
+        required: false
+        default: '1.1.0'
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      REPO: aayushbhatta230-ux/trinity-teaching-app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+
+      - name: Build the app
+        env:
+          AI_SERVER: ${{ secrets.AI_SERVER }}
+          AI_ACCESS_CODE: ${{ secrets.AI_ACCESS_CODE }}
+        run: |
+          if [ -z "$AI_SERVER" ] || [ -z "$AI_ACCESS_CODE" ]; then
+            echo "::error::The AI_SERVER or AI_ACCESS_CODE secret is missing. See the top of this file."
+            exit 1
+          fi
+          npx vite build
+
+      - name: Make the update files
+        env:
+          NOTES: ${{ inputs.notes }}
+          MIN_SHELL: ${{ inputs.min_shell }}
+        run: |
+          mkdir -p out
+          cp dist/index.html out/app.html
+          node -e '
+            const fs = require("fs");
+            const crypto = require("crypto");
+            const file = fs.readFileSync("out/app.html");
+            const { version } = JSON.parse(fs.readFileSync("package.json", "utf8"));
+            const manifest = {
+              version,
+              file: "app.html",
+              sha256: crypto.createHash("sha256").update(file).digest("hex"),
+              size: file.length,
+              minShell: process.env.MIN_SHELL || "1.1.0",
+              notes: process.env.NOTES || "",
+              publishedAt: new Date().toISOString().replace(/\.\d+Z$/, "Z"),
+            };
+            fs.writeFileSync("out/update.json", JSON.stringify(manifest, null, 2));
+            console.log("Update", version, manifest.size, "bytes");
+          '
+
+      - name: Upload to the update channel
+        env:
+          GH_TOKEN: ${{ secrets.UPDATE_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::The UPDATE_TOKEN secret is missing. See the top of this file."
+            exit 1
+          fi
+          if ! gh release view live -R "$REPO" > /dev/null 2>&1; then
+            gh release create live -R "$REPO" --prerelease --latest=false --title "In-app updates" \
+              --notes "Update channel used by the installed apps. To install the app, use the latest release instead."
+          fi
+          gh release upload live -R "$REPO" out/app.html out/update.json --clobber
+          echo "### Published version $(node -p "require('./package.json').version")" >> "$GITHUB_STEP_SUMMARY"
+          echo "Installed apps update with Check for updates → Restart now." >> "$GITHUB_STEP_SUMMARY"

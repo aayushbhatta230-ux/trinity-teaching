@@ -89,14 +89,18 @@ The home screen shows the running version, for example "Version 1.1.0".
 
 ### Publishing an update
 
-1. Raise `version` in `package.json`, for example 1.1.0 → 1.1.1.
-2. Run:
+Nothing is ever run on the school PCs or boards: they only use **Check for updates** → **Restart now**.
 
-   ```bash
-   npm run publish-update -- -Notes "What changed"
-   ```
+To publish, raise `version` in `package.json` (for example 1.2.1 → 1.2.2) and push. Then, from any browser:
 
-This builds the bundle and uploads `app.html` and `update.json` to the `live` release of [trinity-teaching-app](https://github.com/aayushbhatta230-ux/trinity-teaching-app/releases/tag/live). That release is a pre-release, so the normal download links are unaffected.
+1. Open GitHub → this repository → **Actions** → **Publish update**.
+2. Click **Run workflow**.
+
+The one-time setup is three repository secrets: `UPDATE_TOKEN`, `AI_SERVER` and `AI_ACCESS_CODE`. See the top of [.github/workflows/publish-update.yml](.github/workflows/publish-update.yml).
+
+On a PC with the project, `npm run publish-update -- -Notes "What changed"` does the same thing.
+
+Either way, this builds the bundle and uploads `app.html` and `update.json` to the `live` release of [trinity-teaching-app](https://github.com/aayushbhatta230-ux/trinity-teaching-app/releases/tag/live). That release is a pre-release, so the normal download links are unaffected.
 
 - **Requirement:** the device needs internet to check for and download updates. Teaching works offline either way.
 - **When a new install is still needed:** only when the Windows or Android shell changes, that is `desktop/*.cjs` or the `android/` project.
