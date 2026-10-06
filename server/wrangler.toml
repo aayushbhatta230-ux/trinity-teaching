@@ -9,7 +9,7 @@ compatibility_flags = ["nodejs_compat"]
 binding = "DB"
 database_name = "trinity-ai"
 # Replace with the id printed by `npx wrangler d1 create trinity-ai`.
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "8c951f33-2c6b-44cd-95a1-beb658aae663"
 
 # Cloudflare Workers AI: free daily allowance, no key. Used when Gemini's free quota is busy.
 [ai]
