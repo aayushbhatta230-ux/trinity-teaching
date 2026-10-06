@@ -11,6 +11,15 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+// Settings saved by setup.ps1 (AI_SERVER, ADMIN_TOKEN, GEMINI_API_KEY), unless already set.
+const saved = new URL('../.admin.env', import.meta.url);
+if (fs.existsSync(saved)) {
+  for (const line of fs.readFileSync(saved, 'utf8').split(/\r?\n/)) {
+    const m = line.match(/^(\w+)=(.*)$/);
+    if (m && m[2] && !process.env[m[1]]) process.env[m[1]] = m[2];
+  }
+}
+
 const MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash';
 const EXAMS = ['CEE', 'IOE', 'IOM'];
 const PORTIONS = {
