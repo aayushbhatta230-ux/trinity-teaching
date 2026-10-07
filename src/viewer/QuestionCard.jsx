@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import RichText from '../components/RichText.jsx';
 
 const LETTERS = ['A', 'B', 'C', 'D'];
 
@@ -34,14 +35,14 @@ export default function QuestionCard({ q, number, onAnswer, onSlide, big }) {
         <span className={`qcard-source ${q.kind === 'past' ? 'is-past' : 'is-practice'}`}>{sourceLabel(q)}</span>
         {(q.topic || q.unit) && <span className="qcard-topic">{q.topic || q.unit}</span>}
       </div>
-      <p className="qcard-question">{q.question}</p>
+      <RichText className="qcard-question" text={q.question} />
       <div className="qcard-options">
         {q.options.map((o, i) => {
           const isAnswer = shown && LETTERS[i] === q.answer;
           const isWrong = shown && picked === i && !isAnswer;
           return (
             <button key={i} className={`qopt ${isAnswer ? 'is-right' : ''} ${isWrong ? 'is-wrong' : ''}`} onClick={() => reveal(i)}>
-              <b>{LETTERS[i]}</b><span>{o}</span>
+              <b>{LETTERS[i]}</b><RichText inline text={o} />
             </button>
           );
         })}
@@ -53,7 +54,7 @@ export default function QuestionCard({ q, number, onAnswer, onSlide, big }) {
             {q.answer ? <b>Answer: {q.answer}</b> : <b className="qcard-nokey">Not in the official answer key — the AI Quiz works it out</b>}
             {ANSWER_NOTE[q.answerSource] && <span className="qcard-note">{ANSWER_NOTE[q.answerSource]}</span>}
           </div>
-          {q.explanation && <p>{q.explanation}</p>}
+          {q.explanation && <RichText className="qcard-explain" text={q.explanation} />}
           {q.slide && onSlide && <button className="btn-link" onClick={() => onSlide(q.slide)}>See slide {q.slide}</button>}
         </div>
       )}

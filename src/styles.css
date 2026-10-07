@@ -600,6 +600,13 @@ h1, h2, h3, p { margin: 0; }
 .qcard-answer b.qcard-nokey { color: var(--ink-2); font-size: 1.6rem; }
 .qcard-note { font-size: 1.25rem; color: var(--muted); }
 .qcard-answer .btn-link { align-self: flex-start; }
+/* AI text: steps as bullets, formulas readable */
+.rich-list { margin: 0; padding-left: 1.6em; display: flex; flex-direction: column; gap: 0.35em; }
+.rich-list li { line-height: 1.5; padding-left: 0.2em; }
+.rich-list li::marker { color: var(--gold-600); }
+.ai-answer.rich-list { padding-left: 2.6rem; }
+.qcard-explain { font-size: 1.7rem; color: var(--ink); }
+.qcard-question.rich-list { list-style: none; padding-left: 0; }
 .qcard-big .qcard-question { font-size: 2.4rem; }
 .qcard-big .qopt { font-size: 2rem; min-height: 6.5rem; }
 

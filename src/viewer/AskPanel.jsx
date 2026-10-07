@@ -5,6 +5,7 @@
 import { useRef, useState } from 'react';
 import Icon from '../components/Icon.jsx';
 import QuestionCard from './QuestionCard.jsx';
+import RichText from '../components/RichText.jsx';
 import { askAi, chapterContext, findSlide, getAiConfig, isNavigation } from '../lib/ai.js';
 import { useBackHandler } from '../lib/native.js';
 
@@ -90,7 +91,7 @@ export default function AskPanel({ sel, rec, getSlides, page, onGoto, onClose })
             <div className="ai-result">
               <div className="ai-q">“{state.q}”</div>
               {r.demo && <div className="ai-demo">Demo mode — the AI is not connected yet</div>}
-              {r.answer && <p className={`ai-answer ${r.action === 'not_in_material' ? 'is-missing' : ''}`}>{r.answer}</p>}
+              {r.answer && <RichText className={`ai-answer ${r.action === 'not_in_material' ? 'is-missing' : ''}`} text={r.answer} />}
               {r.citedSlides?.length > 0 && (
                 <div className="ai-cites">
                   <span>From slide{r.citedSlides.length > 1 ? 's' : ''}:</span>

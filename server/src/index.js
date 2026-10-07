@@ -39,6 +39,9 @@ async function spend(env) {
   return row.count <= Number(env.DAILY_LIMIT || 400);
 }
 
+/** A worked solution as lines (the model may send a list or one text). */
+const steps = (x) => (Array.isArray(x) ? x.map(String).join(String.fromCharCode(10)) : String(x || ''));
+
 /** The model's array, or [] if it sent something else. */
 const list = (x) => (Array.isArray(x) ? x : []);
 
@@ -120,9 +123,9 @@ async function handleQuiz(req, env) {
       used.add(p.id);
       const q = present(p);
       // The official key wins; otherwise the AI's worked answer, labelled as such.
-      items.push({ ...q, answer: q.answer || it.answer, answerSource: q.answer ? q.answerSource : 'ai', explanation: it.explanation, slide: it.slide });
+      items.push({ ...q, answer: q.answer || it.answer, answerSource: q.answer ? q.answerSource : 'ai', explanation: steps(it.explanation), slide: it.slide });
     } else if (it.question && goodOptions(it.options)) {
-      items.push({ kind: 'practice', style: exams.includes(it.style) ? it.style : null, unit: it.unit || null, question: it.question, options: it.options, answer: it.answer, answerSource: 'practice', explanation: it.explanation, slide: it.slide });
+      items.push({ kind: 'practice', style: exams.includes(it.style) ? it.style : null, unit: it.unit || null, question: it.question, options: it.options, answer: it.answer, answerSource: 'practice', explanation: steps(it.explanation), slide: it.slide });
     }
   }
   return json({ items, exams, pastAvailable: past.length, demo: env.DEMO_MODE === '1', via: r.meta });
