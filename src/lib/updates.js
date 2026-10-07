@@ -15,7 +15,7 @@
 import { useEffect, useState } from 'react';
 import { Capacitor, CapacitorHttp, WebView } from '@capacitor/core';
 import { App as NativeApp } from '@capacitor/app';
-import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
+import { Filesystem, Directory } from '@capacitor/filesystem';
 import { desktopApp, isNativeApp } from './native.js';
 
 export const UPDATE_BASE = 'https://github.com/aayushbhatta230-ux/trinity-teaching-app/releases/download/live/';
@@ -34,9 +34,17 @@ export function compareVersions(a = '0', b = '0') {
   return 0;
 }
 
-async function sha256Hex(text) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+async function sha256Hex(bytes) {
+  const buf = await crypto.subtle.digest('SHA-256', bytes);
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** Base64 (as returned by native HTTP for binary responses) → bytes. */
+export function base64ToBytes(b64) {
+  const bin = atob(String(b64).replace(/\s+/g, ''));
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
 }
 
 const storage = {
@@ -61,12 +69,17 @@ const android = {
     const pending = storage.get();
     if (pending?.version === m.version) return { state: 'ready', version: m.version, notes: m.notes };
 
-    const file = await CapacitorHttp.get({ url: `${UPDATE_BASE}${m.file}?t=${Date.now()}`, responseType: 'text' });
-    if (file.status !== 200 || typeof file.data !== 'string') throw new Error('Download failed');
-    if ((await sha256Hex(file.data)) !== m.sha256) throw new Error('Downloaded update failed its integrity check');
+    // Download the exact bytes. (As "text", Android's native HTTP re-reads the file line by line,
+    // which changes line endings and the last newline, so the checksum could never match.)
+    const file = await CapacitorHttp.get({ url: `${UPDATE_BASE}${m.file}?t=${Date.now()}`, responseType: 'arraybuffer', connectTimeout: 30000, readTimeout: 120000 });
+    if (file.status !== 200 || typeof file.data !== 'string') throw new Error(`Download failed (${file.status})`);
+    const bytes = base64ToBytes(file.data);
+    if (m.size && bytes.length !== m.size) throw new Error(`Download incomplete (${bytes.length} of ${m.size} bytes)`);
+    if ((await sha256Hex(bytes)) !== m.sha256) throw new Error('Downloaded update failed its integrity check');
 
+    // Saved byte for byte: data without an encoding is written as base64.
     const path = `web-updates/${m.version}/index.html`;
-    await Filesystem.writeFile({ path, data: file.data, directory: Directory.Data, encoding: Encoding.UTF8, recursive: true });
+    await Filesystem.writeFile({ path, data: file.data.replace(/\s+/g, ''), directory: Directory.Data, recursive: true });
     const { uri } = await Filesystem.getUri({ path, directory: Directory.Data });
     const dir = decodeURIComponent(uri.replace(/^file:\/\//, '')).replace(/\/index\.html$/, '');
     storage.set({ version: m.version, dir, notes: m.notes });

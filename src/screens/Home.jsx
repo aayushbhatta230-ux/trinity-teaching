@@ -29,8 +29,10 @@ function UpdateStatus() {
       {u.state === 'needs-install' ? (
         <span className="home-version-note">Version {u.version} needs a new install of the app</span>
       ) : u.state !== 'ready' && (
-        <button className="btn-link" onClick={() => u.check()} disabled={u.state === 'checking'}>
-          {STATUS[u.state] ?? 'Check for updates'}
+        <button className="btn-link" onClick={() => u.check()} disabled={u.state === 'checking'} title={u.message || ''}>
+          {u.state === 'error'
+            ? `Update failed: ${String(u.message || 'unknown error').slice(0, 70)} · Try again`
+            : STATUS[u.state] ?? 'Check for updates'}
         </button>
       )}
     </div>
