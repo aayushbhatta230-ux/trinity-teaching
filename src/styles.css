@@ -763,3 +763,9 @@ h1, h2, h3, p { margin: 0; }
   .overlay { padding: 0.75rem; }
 }
 
+
+/* Ask AI: waiting time and retry */
+.ai-waited { margin-left: auto; font-variant-numeric: tabular-nums; color: var(--muted); font-size: 1.5rem; }
+.ai-error { align-items: center; }
+.ai-error > span { flex: 1; }
+.ai-retry { min-height: 4.5rem; font-size: 1.6rem; flex: none; }

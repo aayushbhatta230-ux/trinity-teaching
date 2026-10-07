@@ -66,6 +66,32 @@ function readContext(body) {
   };
 }
 
+/** Long chapters, shortened evenly so every slide keeps its start (titles and key lines). */
+function compact(context, maxChars) {
+  const total = context.slides.reduce((n, s) => n + s.text.length, 0);
+  if (total <= maxChars) return context;
+  const per = Math.max(200, Math.floor(maxChars / context.slides.length));
+  return { ...context, slides: context.slides.map((s) => ({ ...s, text: s.text.slice(0, per) })) };
+}
+
+const MCQ_REQUEST =/\b(mcqs?|questions?|quiz|practice|past papers?)\b/i;
+
+/**
+ * The slides most relevant to a question (plus the slide on the board), in order.
+ * Whole chapters can be 100+ slides; sending only what matters keeps answers fast and on point.
+ */
+function focusSlides(context, query, max = 10) {
+  const all = context.slides;
+  if (all.length <= max) return all;
+  const want = new Set(terms(query));
+  const scored = all.map((s) => ({ s, score: terms(s.text).filter((w) => want.has(w)).length }));
+  const keep = new Set(scored.filter((x) => x.score > 0).sort((a, b) => b.score - a.score).slice(0, max - 1).map((x) => x.s.n));
+  // Nothing matched (e.g. "explain this slide"): the slides around the current one.
+  if (!keep.size) for (let n = context.currentSlide - 3; n <= context.currentSlide + 5; n++) keep.add(n);
+  keep.add(context.currentSlide);
+  return all.filter((s) => keep.has(s.n));
+}
+
 async function handleAsk(req, env) {
   const body = await req.json().catch(() => null);
   const context = readContext(body);
@@ -77,9 +103,25 @@ async function handleAsk(req, env) {
   for (const w of terms(query)) weights.set(w, (weights.get(w) || 0) + 8); // the request matters most
   const past = await shortlist(env.DB, { subject: context.subject, portion: context.portion, exams: examsFor(context.subject, context.group), weights, limit: 30 });
 
+  // "MCQs on this chapter" while no past papers are loaded: give exam-style practice questions
+  // instead of an empty answer.
+  const exams = examsFor(context.subject, context.group);
+  if (env.DEMO_MODE !== '1' && !past.length && exams.length && MCQ_REQUEST.test(query)) {
+    const q = await buildQuiz(env, { context, count: 5, exams, past });
+    return json({
+      action: 'show_questions',
+      answer: q.items.length
+        ? 'No past papers are loaded yet, so here are practice questions in entrance-exam style, hardest first.'
+        : 'No questions could be made for this chapter yet.',
+      slide: null, citedSlides: [], questions: q.items, demo: false, via: q.meta,
+    });
+  }
+
+  // Only the slides that matter for this question: faster and more focused.
+  const focused = { ...context, slides: focusSlides(context, query) };
   const r = env.DEMO_MODE === '1'
     ? demo.ask({ context, query, past })
-    : await ai.ask(env, { context, query, exams: examsFor(context.subject, context.group), pastList: listForPrompt(past) });
+    : await ai.ask(env, { context: focused, query, exams, pastList: listForPrompt(past) });
 
   const byId = new Map(past.map((p) => [p.id, p]));
   const slideOk = (n) => Number.isInteger(n) && context.slides.some((s) => s.n === n);
@@ -107,16 +149,23 @@ async function handleQuiz(req, env) {
   if (!(await spend(env))) return fail("Today's AI limit for the college has been reached. It resets tomorrow.", 429);
 
   const past = await shortlist(env.DB, { subject: context.subject, portion: context.portion, exams, weights: chapterTerms(context), limit: 80 });
+  const q = await buildQuiz(env, { context, count, exams, past });
+  return json({ items: q.items, exams, pastAvailable: past.length, demo: env.DEMO_MODE === '1', via: q.meta });
+}
+
+/** Asks for a quiz and keeps only valid items: real past questions by id, or labelled practice. */
+async function buildQuiz(env, { context, count, exams, past }) {
+  const started = Date.now();
   const r = env.DEMO_MODE === '1'
     ? demo.quiz({ context, count, past })
-    : await ai.quiz(env, { context, count, exams, pastList: listForPrompt(past) });
+    : await ai.quiz(env, { context: compact(context, 40000), count: count + 2, exams, pastList: listForPrompt(past) }); // 2 spare in case the check drops some
 
   const byId = new Map(past.map((p) => [p.id, p]));
   const used = new Set();
   const items = [];
   for (const it of list(r.items)) {
     if (!it || typeof it !== 'object') continue; // skip anything malformed from the model
-    if (items.length >= count) break;
+    if (items.length >= count + 2) break;
     if (it.question_id != null) {
       const p = byId.get(it.question_id);
       if (!p || used.has(p.id)) continue; // never show an id the AI made up
@@ -128,7 +177,37 @@ async function handleQuiz(req, env) {
       items.push({ kind: 'practice', style: exams.includes(it.style) ? it.style : null, unit: it.unit || null, question: it.question, options: it.options, answer: it.answer, answerSource: 'practice', explanation: steps(it.explanation), slide: it.slide });
     }
   }
-  return json({ items, exams, pastAvailable: past.length, demo: env.DEMO_MODE === '1', via: r.meta });
+  // The answer check runs when the quiz came quickly enough; a slow day never doubles the wait.
+  const checked = env.DEMO_MODE === '1' || Date.now() - started > 35000 ? items : await checkAnswers(env, context, items);
+  return { items: checked.slice(0, count), meta: r.meta };
+}
+
+/**
+ * Accuracy: every answer the AI worked out (practice questions, and past questions without an
+ * official key) is solved again independently. A different answer replaces the AI's; a question
+ * the check finds wrong or ambiguous is dropped. Official-key answers are never touched.
+ */
+async function checkAnswers(env, context, items) {
+  const todo = items.map((q, i) => ({ q, i })).filter(({ q }) => q.answerSource === 'practice' || q.answerSource === 'ai');
+  if (!todo.length) return items;
+  let result;
+  try {
+    result = await ai.check(env, { context, items: todo.map(({ q }) => q) });
+  } catch {
+    return items; // the check is a bonus; if it is unavailable, keep the quiz
+  }
+  const verdict = new Map(list(result.checks).filter((c) => Number.isInteger(c?.index)).map((c) => [c.index, c]));
+  const drop = new Set();
+  todo.forEach(({ q, i }, k) => {
+    const c = verdict.get(k);
+    if (!c) return;
+    if (!c.answer) { drop.add(i); return; }
+    if (c.answer !== q.answer) {
+      q.answer = c.answer;
+      if (c.explanation) q.explanation = steps(c.explanation);
+    }
+  });
+  return items.filter((_, i) => !drop.has(i));
 }
 
 /** Four distinct, real options (not just "A", "B" …). */

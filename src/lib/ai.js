@@ -54,7 +54,7 @@ async function call(path, { method = 'POST', body, cfg = getAiConfig(), timeout 
       signal: ctrl.signal,
     });
   } catch (e) {
-    throw new AiError(e?.name === 'AbortError' ? 'The AI took too long to answer. Try again.' : 'No internet connection to the AI server.');
+    throw new AiError(e?.name === 'AbortError' ? 'The AI is busy right now and did not answer in time. Tap Try again.' : 'No internet connection to the AI server.');
   } finally {
     clearTimeout(timer);
   }
@@ -90,7 +90,7 @@ export function chapterContext(sel, rec, slides, currentSlide) {
   };
 }
 
-export const askAi = (context, query) => call('/ask', { body: { context, query }, timeout: 60000 });
+export const askAi = (context, query) => call('/ask', { body: { context, query }, timeout: 100000 });
 export const quizAi = (context, { count, exams }) => call('/quiz', { body: { context, count, exams }, timeout: 180000 });
 
 // ---------- offline slide search ----------

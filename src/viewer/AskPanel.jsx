@@ -2,7 +2,7 @@
  * Ask AI: search the chapter for formulas, definitions and past MCQs, or jump to a slide.
  * Everything is answered from this presentation's slides and the past-paper bank.
  */
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Icon from '../components/Icon.jsx';
 import QuestionCard from './QuestionCard.jsx';
 import RichText from '../components/RichText.jsx';
@@ -11,7 +11,7 @@ import { useBackHandler } from '../lib/native.js';
 
 const SUGGESTIONS = [
   'Key formulas in this chapter',
-  'Toughest past MCQs on this chapter',
+  'Toughest MCQs on this chapter',
   'Explain the current slide simply',
   'Take me to the slide about ',
 ];
@@ -25,7 +25,7 @@ export default function AskPanel({ sel, rec, getSlides, page, onGoto, onClose })
   const submit = async (q = query) => {
     q = q.trim();
     if (!q || state.status === 'busy') return;
-    setState({ status: 'busy' });
+    setState({ status: 'busy', q, mcq: /\b(mcqs?|questions?|quiz|practice)\b/i.test(q) });
     try {
       const slides = await getSlides();
       if (!slides.some((s) => s.text)) {
@@ -45,7 +45,7 @@ export default function AskPanel({ sel, rec, getSlides, page, onGoto, onClose })
       if (r.action === 'goto_slide' && r.slide) { onGoto(r.slide); onClose(); return; }
       setState({ status: 'done', q, r });
     } catch (e) {
-      setState({ status: 'error', message: e.message || 'Something went wrong.' });
+      setState({ status: 'error', q, message: e.message || 'Something went wrong.' });
     }
   };
 
@@ -54,6 +54,15 @@ export default function AskPanel({ sel, rec, getSlides, page, onGoto, onClose })
     setQuery(s);
     submit(s);
   };
+
+  // Seconds waited, so a slow answer never looks frozen.
+  const [waited, setWaited] = useState(0);
+  useEffect(() => {
+    if (state.status !== 'busy') return undefined;
+    setWaited(0);
+    const t = setInterval(() => setWaited((n) => n + 1), 1000);
+    return () => clearInterval(t);
+  }, [state.status]);
 
   const r = state.r;
   return (
@@ -85,8 +94,15 @@ export default function AskPanel({ sel, rec, getSlides, page, onGoto, onClose })
               </div>
             </div>
           )}
-          {state.status === 'busy' && <div className="ai-wait"><span className="spinner" /> Reading the slides…</div>}
-          {state.status === 'error' && <div className="dialog-error" role="alert"><Icon name="alert" size={36} /> {state.message}</div>}
+          {state.status === 'busy' && (
+            <div className="ai-wait"><span className="spinner" /> {state.mcq ? 'Building exam-style questions…' : 'Reading the slides…'} <span className="ai-waited">{waited}s</span></div>
+          )}
+          {state.status === 'error' && (
+            <div className="dialog-error ai-error" role="alert">
+              <Icon name="alert" size={36} /> <span>{state.message}</span>
+              {state.q && <button className="btn-secondary ai-retry" onClick={() => submit(state.q)}>Try again</button>}
+            </div>
+          )}
           {state.status === 'done' && (
             <div className="ai-result">
               <div className="ai-q">“{state.q}”</div>
