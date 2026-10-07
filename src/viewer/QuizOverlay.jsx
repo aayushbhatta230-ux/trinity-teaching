@@ -40,7 +40,7 @@ export default function QuizOverlay({ sel, rec, getSlides, page, onGoto, onClose
     try {
       if (!getAiConfig()) throw new Error('AI is not set up on this board yet.');
       const slides = await getSlides();
-      if (!slides.some((s) => s.text)) throw new Error('This PDF has no readable text (its slides are pictures), so a quiz cannot be made from it.');
+      if (!slides.some((s) => s.text)) throw new Error('This presentation has no readable text (its slides are pictures), so a quiz cannot be made from it.');
       const r = await quizAi(chapterContext(sel, rec, slides, page), { count, exams });
       if (!r.items?.length) throw new Error('No questions could be made for this chapter yet.');
       setIndex(0);

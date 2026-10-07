@@ -115,10 +115,15 @@ The app shows only **chapter presentations uploaded by teachers**. There is no s
 
 1. Go to the class, section, subject and portion.
 2. On the Presentations screen, tap **Add presentation**.
-3. Choose the PDF, for example from a USB drive, Downloads or Google Drive.
+3. Choose the file, for example from a USB drive, Downloads or Google Drive.
 4. Set the chapter number and title, then tap **Save to board**.
 
-- **Format:** PDF only. In PowerPoint use **File → Save As → PDF**. Choosing a `.pptx` file shows this instruction instead of uploading.
+- **Formats:**
+  - **PDF.**
+  - **PowerPoint (.pptx):** shown slide by slide on the board, offline, including text, pictures, shapes, tables and charts. Very complex animations or SmartArt may look simpler than in PowerPoint; for an exact copy, save the presentation as PDF.
+  - **Text (.txt):** split into readable pages, with the first line as a title.
+  - Older `.ppt` files must first be saved as `.pptx` in PowerPoint; the app explains this if one is chosen.
+- **AI:** Ask AI and Quiz work with all three formats. They need text in the file, so slides that are only pictures cannot be searched.
 - **Removing files:** tap **Manage**, then tap a presentation to remove it. The app asks for confirmation first.
 
 ### Every classroom has its own storage

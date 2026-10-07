@@ -482,10 +482,19 @@ h1, h2, h3, p { margin: 0; }
   touch-action: pan-x pan-y; -webkit-overflow-scrolling: touch;
 }
 .canvas.is-zoomed { cursor: grab; }
-.canvas-page { margin: auto; flex: none; box-shadow: 0 0.6rem 2.5rem rgba(0, 0, 0, 0.45); background: #fff; }
-.canvas-page canvas { display: block; transition: opacity 0.15s; }
-.canvas-page canvas.is-rendering { opacity: 0.85; }
-.thumb-canvas { display: block; background: #fff; box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.4); }
+.canvas-page { position: relative; margin: auto; flex: none; box-shadow: 0 0.6rem 2.5rem rgba(0, 0, 0, 0.45); background: #fff; overflow: hidden; }
+/* the page being shown (and, briefly, the one it replaces) sit on top of each other */
+.canvas-page > * { position: absolute; left: 0; top: 0; }
+.canvas-page canvas { display: block; }
+.thumb-canvas { position: relative; display: block; overflow: hidden; background: #fff; box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.4); }
+.thumb-canvas > * { position: absolute; left: 0; top: 0; }
+/* PowerPoint slides and text pages: laid out at 960 px wide, then scaled */
+.html-page { position: relative; overflow: hidden; background: #fff; }
+.html-page > * { position: absolute !important; left: 0 !important; top: 0 !important; margin: 0 !important; transform-origin: 0 0; }
+.txt-page { box-sizing: border-box; display: flex; flex-direction: column; padding: 56px 72px 40px; background: #fff; color: #1d1314; border-top: 10px solid var(--brand); font-family: var(--font); }
+.txt-page-body { flex: 1; overflow: hidden; white-space: pre-wrap; word-break: break-word; font-size: 30px; line-height: 1.5; }
+.txt-page-num { align-self: flex-end; font-size: 18px; color: #7c6a69; }
+.txt-page.has-title .txt-page-body::first-line { font-weight: 700; color: var(--brand); font-size: 34px; }
 .viewer-loading { margin: auto; color: var(--cream); font-size: 1.8rem; font-weight: 500; }
 .viewer-empty-msg { color: #e8d9cf; }
 .viewer-chapter { display: inline-block; margin-right: 0.8rem; padding: 0.15rem 0.8rem; border-radius: 0.6rem; background: var(--gold); color: var(--brand-800); font-size: 1.3rem; font-weight: 700; vertical-align: 0.25rem; }

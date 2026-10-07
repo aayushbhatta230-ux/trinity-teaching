@@ -1,20 +1,20 @@
 import { useState } from 'react';
 import Icon from './Icon.jsx';
 import { addPresentation } from '../lib/library.js';
-import { openPdf, isPdf, extractSlides } from '../lib/pdf.js';
+import { ACCEPT, KINDS, detectKind, openDocument } from '../lib/documents.js';
 import { formatSize, titleFromFileName } from '../lib/format.js';
 import { getClass, getPortion, getSubject, hasPortionChoice } from '../lib/catalog.js';
 import { sectionCode } from '../data/structure.js';
 import { useBackHandler } from '../lib/native.js';
 
 const MAX_CHAPTER = 40;
-const userError = (message) => Object.assign(new Error(message), { forUser: true });
 
-/** Touch-friendly form for a teacher to add one chapter presentation (PDF) to this board. */
+/** Touch-friendly form for a teacher to add one chapter presentation (PDF, PowerPoint or text) to this board. */
 export default function UploadDialog({ sel, teacher, defaultChapter, onClose, onSaved }) {
   const [file, setFile] = useState(null);
   const [pages, setPages] = useState(0);
   const [slides, setSlides] = useState([]);
+  const [kind, setKind] = useState('pdf');
   const [title, setTitle] = useState('');
   const [chapter, setChapter] = useState(Math.min(defaultChapter, MAX_CHAPTER));
   const [status, setStatus] = useState({ busy: false, error: '' });
@@ -31,21 +31,19 @@ export default function UploadDialog({ sel, teacher, defaultChapter, onClose, on
     if (!f) return;
     setStatus({ busy: true, error: '' });
     try {
-      if (/\.pptx?$/i.test(f.name)) {
-        throw userError('This is a PowerPoint file. In PowerPoint choose File → Save As → PDF, then upload the PDF.');
-      }
-      if (!(await isPdf(f))) throw userError('This file is not a PDF. Please choose a PDF file.');
-      const doc = await openPdf(f);
+      const k = await detectKind(f);
+      const doc = await openDocument({ kind: k, file: f });
       setPages(doc.numPages);
       // Slide text lets Ask AI search and navigate this presentation.
-      setSlides(await extractSlides(doc));
+      setSlides(await doc.extractSlides());
       doc.destroy();
+      setKind(k);
       setFile(f);
       if (!title) setTitle(titleFromFileName(f.name));
       setStatus({ busy: false, error: '' });
     } catch (err) {
       setFile(null);
-      setStatus({ busy: false, error: err?.forUser ? err.message : 'This PDF could not be opened. It may be damaged or password-protected.' });
+      setStatus({ busy: false, error: err?.forUser ? err.message : 'This file could not be opened. It may be damaged or password-protected.' });
     }
   };
 
@@ -60,6 +58,7 @@ export default function UploadDialog({ sel, teacher, defaultChapter, onClose, on
           title: title.trim(),
           pages,
           slides,
+          kind,
         },
         file
       );
@@ -87,17 +86,17 @@ export default function UploadDialog({ sel, teacher, defaultChapter, onClose, on
 
         <div className="dialog-body">
           <label className={`file-drop ${file ? 'has-file' : ''}`}>
-            <input type="file" accept="application/pdf,.pdf" onChange={pick} disabled={status.busy} />
+            <input type="file" accept={ACCEPT} onChange={pick} disabled={status.busy} />
             <Icon name={file ? 'pdf' : 'upload'} size={64} stroke={1.6} />
             {file ? (
               <span className="file-drop-text">
                 <b>{file.name}</b>
-                <span>{pages} {pages === 1 ? 'slide' : 'slides'} · {formatSize(file.size)} · tap to choose a different file</span>
+                <span>{KINDS[kind].label} · {pages} {kind === 'txt' ? (pages === 1 ? 'page' : 'pages') : (pages === 1 ? 'slide' : 'slides')} · {formatSize(file.size)} · tap to choose a different file</span>
               </span>
             ) : (
               <span className="file-drop-text">
-                <b>{status.busy ? 'Reading file…' : 'Choose PDF file'}</b>
-                <span>From a USB drive or this board. In PowerPoint use File → Save As → PDF.</span>
+                <b>{status.busy ? 'Reading file…' : 'Choose a file'}</b>
+                <span>PDF, PowerPoint (.pptx) or text (.txt), from a USB drive or this board.</span>
               </span>
             )}
           </label>

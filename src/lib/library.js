@@ -4,7 +4,7 @@
  * Every classroom (section code: MA1, DB2, DI1 …) has its OWN database on the device
  * ("trinity-room-MA1", "trinity-room-DB2", …). A classroom screen only ever opens its own
  * database, so a presentation uploaded in MA1 cannot be listed or opened from any other
- * classroom. To use the same PDF in another classroom, the teacher uploads it there too.
+ * classroom. To use the same file in another classroom, the teacher uploads it there too.
  *
  * Record shape:
  *   { id, room, teacher, cls, shift, group, section, portion, chapter, title,

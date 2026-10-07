@@ -29,7 +29,7 @@ export default function AskPanel({ sel, rec, getSlides, page, onGoto, onClose })
     try {
       const slides = await getSlides();
       if (!slides.some((s) => s.text)) {
-        throw new Error('This PDF has no readable text (its slides are pictures), so it cannot be searched.');
+        throw new Error('This presentation has no readable text (its slides are pictures), so it cannot be searched.');
       }
       // Slide navigation is answered on the board first: instant, and works without internet.
       if (isNavigation(q)) {

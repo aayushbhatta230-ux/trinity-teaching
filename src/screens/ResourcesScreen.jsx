@@ -72,7 +72,7 @@ export default function ResourcesScreen({ sel, go }) {
               <span className="file-main">
                 <span className="file-title">{p.title}</span>
                 <span className="file-desc">
-                  {p.pages} {p.pages === 1 ? 'slide' : 'slides'} · {formatSize(p.size)}
+                  {p.kind === 'pptx' ? 'PowerPoint · ' : p.kind === 'txt' ? 'Text · ' : ''}{p.pages} {p.kind === 'txt' ? (p.pages === 1 ? 'page' : 'pages') : (p.pages === 1 ? 'slide' : 'slides')} · {formatSize(p.size)}
                   
                 </span>
               </span>
@@ -88,7 +88,7 @@ export default function ResourcesScreen({ sel, go }) {
         <div className="empty">
           <Icon name="presentation" size={110} stroke={1.4} />
           <h2>No presentations uploaded yet</h2>
-          <p>Save your chapter slides as PDF in PowerPoint, then tap <b>Add presentation</b>.</p>
+          <p>Tap <b>Add presentation</b> to add chapter slides as PDF, PowerPoint (.pptx) or a text file.</p>
         </div>
       ) : (
         <div className="empty">

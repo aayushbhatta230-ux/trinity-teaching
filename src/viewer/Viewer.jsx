@@ -1,5 +1,5 @@
 /**
- * Read-only presentation viewer for uploaded chapter PDFs. Deliberately has no editing,
+ * Read-only presentation viewer for uploaded chapters (PDF, PowerPoint or text). Deliberately has no editing,
  * pen, annotation or highlight tools — only page navigation, zoom and full screen.
  */
 import { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react';
@@ -7,7 +7,7 @@ import Icon from '../components/Icon.jsx';
 import { BackButton, Clock, useRemPx } from '../components/Chrome.jsx';
 import { getTeacher, resolveTeacher } from '../lib/catalog.js';
 import { getPresentation, saveSlides } from '../lib/library.js';
-import { openPdf, renderPage, extractSlides } from '../lib/pdf.js';
+import { openDocument } from '../lib/documents.js';
 import AskPanel from './AskPanel.jsx';
 import QuizOverlay from './QuizOverlay.jsx';
 import { formatDate, formatSize } from '../lib/format.js';
@@ -64,11 +64,9 @@ export default function Viewer({ sel, id, page, go }) {
           if (!cancelled) setState({ status: 'missing' });
           return;
         }
-        doc = await openPdf(rec.file);
+        doc = await openDocument(rec);
         if (cancelled) { doc.destroy(); return; }
-        const first = await doc.getPage(1);
-        const vp = first.getViewport({ scale: 1 });
-        setState({ status: 'ready', rec, doc, aspect: vp.width / vp.height });
+        setState({ status: 'ready', rec, doc, aspect: doc.aspect });
       } catch {
         if (!cancelled) setState({ status: 'error' });
       }
@@ -79,8 +77,8 @@ export default function Viewer({ sel, id, page, go }) {
 
   if (state.status === 'loading') return <div className="screen viewer"><div className="viewer-loading">Opening presentation…</div></div>;
   if (state.status === 'missing') return <Unavailable go={go} title="This presentation belongs to another classroom" />;
-  if (state.status === 'error') return <Unavailable go={go} title="This presentation could not be opened" message="The PDF may be damaged. Remove it and upload it again." />;
-  return <PdfViewer {...state} sel={sel} page={page} go={go} />;
+  if (state.status === 'error') return <Unavailable go={go} title="This presentation could not be opened" message="The file may be damaged. Remove it and upload it again." />;
+  return <DocViewer {...state} sel={sel} page={page} go={go} />;
 }
 
 /** A page thumbnail that renders only once it scrolls into view. */
@@ -94,15 +92,13 @@ function Thumb({ doc, number, width, aspect }) {
   }, []);
   useEffect(() => {
     if (!visible) return undefined;
-    let task;
-    let live = true;
-    doc.getPage(number).then((pg) => { if (live) { task = renderPage(pg, ref.current, width); task.promise.catch(() => {}); } });
-    return () => { live = false; task?.cancel(); };
+    const m = doc.mount(number, ref.current, width, { clone: true });
+    return () => m.cancel();
   }, [visible, doc, number, width]);
-  return <canvas ref={ref} className="thumb-canvas" style={{ width, height: width / aspect }} />;
+  return <div ref={ref} className="thumb-canvas" style={{ width, height: width / aspect }} />;
 }
 
-function PdfViewer({ sel, rec, doc, aspect, page, go }) {
+function DocViewer({ sel, rec, doc, aspect, page, go }) {
   const total = doc.numPages;
   const p = Math.min(Math.max(page, 1), total);
   const [zoom, setZoom] = useState(1);
@@ -166,20 +162,24 @@ function PdfViewer({ sel, rec, doc, aspect, page, go }) {
   const cssW = Math.round(fitW * zoom);
 
   // Render the current page (re-render on page, size or zoom change).
-  const canvasRef = useRef(null);
+  // The previous page stays on screen until the new one is ready, so turning pages never flashes.
+  const pageRef = useRef(null);
+  const shown = useRef(null);
   const [rendered, setRendered] = useState(false);
   useEffect(() => {
     if (!cssW) return undefined;
-    let task;
     let live = true;
     setRendered(false);
-    doc.getPage(p).then((pg) => {
+    const m = doc.mount(p, pageRef.current, cssW);
+    m.promise.then(() => {
       if (!live) return;
-      task = renderPage(pg, canvasRef.current, cssW);
-      task.promise.then(() => live && setRendered(true)).catch(() => {});
-    });
-    return () => { live = false; task?.cancel(); };
+      shown.current?.cancel();
+      shown.current = m;
+      setRendered(true);
+    }).catch(() => {});
+    return () => { live = false; if (shown.current !== m) m.cancel(); };
   }, [doc, p, cssW]);
+  useEffect(() => () => shown.current?.cancel(), []);
 
   // Keep the view centred when zooming.
   useLayoutEffect(() => {
@@ -210,11 +210,11 @@ function PdfViewer({ sel, rec, doc, aspect, page, go }) {
     }
   };
 
-  // Slide text for AI: saved at upload; read once from the PDF for older uploads.
+  // Slide text for AI: saved at upload; read once from the file for older uploads.
   const slidesRef = useRef(rec.slides ? Promise.resolve(rec.slides) : null);
   const getSlides = useCallback(() => {
     if (!slidesRef.current) {
-      slidesRef.current = extractSlides(doc).then((slides) => {
+      slidesRef.current = doc.extractSlides().then((slides) => {
         saveSlides(sel, rec.id, slides).catch(() => {});
         return slides;
       });
@@ -235,7 +235,7 @@ function PdfViewer({ sel, rec, doc, aspect, page, go }) {
           <BackButton onClick={go.resources} label="Presentations" />
           <div className="viewer-title">
             <div className="viewer-name"><span className="viewer-chapter">Chapter {rec.chapter}</span>{rec.title}</div>
-            <div className="viewer-meta">{teacher?.name} · {total} slides · {formatSize(rec.size)} · uploaded {formatDate(rec.uploadedAt)}</div>
+            <div className="viewer-meta">{teacher?.name} · {total} {rec.kind === 'txt' ? 'pages' : 'slides'} · {formatSize(rec.size)} · uploaded {formatDate(rec.uploadedAt)}</div>
           </div>
           <Clock />
           <button className="btn-home" onClick={go.home} aria-label="Home"><Icon name="home" size={40} /></button>
@@ -259,9 +259,7 @@ function PdfViewer({ sel, rec, doc, aspect, page, go }) {
           onPointerUp={onPointerUp}
           onDoubleClick={() => { if (!present && gesture.current.type !== 'touch') setZoom((z) => (z === 1 ? 2 : 1)); }}
         >
-          <div className="canvas-page" style={{ width: cssW, height: cssW / aspect }}>
-            <canvas ref={canvasRef} className={rendered ? '' : 'is-rendering'} />
-          </div>
+          <div ref={pageRef} className={`canvas-page ${rendered ? '' : 'is-rendering'}`} style={{ width: cssW, height: cssW / aspect }} />
         </div>
       </div>
 
