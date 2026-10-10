@@ -12,6 +12,7 @@ export function normalise(s) {
   let t = String(s);
   t = t.replace(/[½⅓⅔¼¾⅕⅖]/g, (c) => FRACTIONS[c]);
   t = t.replace(/[⁻⁰¹²³⁴⁵⁶⁷⁸⁹]+/g, (m) => `^(${[...m].map((c) => SUP[c]).join('')})`);
+  t = t.replace(/\|([^|]+)\|/g, 'abs($1)');                  // |4 − 0|
   t = t.replace(/[×·∙]/g, '*').replace(/÷/g, '/').replace(/[−–—]/g, '-').replace(/π/g, 'pi').replace(/√/g, 'sqrt');
   t = t.replace(/(\d)\s*x\s*(?=[\d(])/g, '$1*');            // "3 x 10"
   t = t.replace(/(\d|\))\s*(?=pi|sqrt|\()/g, '$1*');         // 2π, 2(…), )(
@@ -22,7 +23,7 @@ export function normalise(s) {
 /** Evaluates + − × ÷ ^, parentheses, pi and sqrt. Returns a number, or null if it is not pure arithmetic. */
 export function evaluate(src) {
   const s = normalise(src).replace(/\s+/g, '');
-  if (!s || /[^0-9.+\-*/^()pisqrte]/.test(s.replace(/sqrt|pi/g, ''))) return null;
+  if (!s || /[^0-9.+\-*/^()pisqrte]/.test(s.replace(/sqrt|pi|abs/g, ''))) return null;
   if (!/[\d]/.test(s)) return null;
   let i = 0;
   const peek = () => s[i];
@@ -37,6 +38,7 @@ export function evaluate(src) {
     if (peek() === '+') { i++; return factor(); }
     let v;
     if (s.startsWith('sqrt', i)) { i += 4; const a = factor(); v = a == null || a < 0 ? null : Math.sqrt(a); }
+    else if (s.startsWith('abs', i)) { i += 3; const a = factor(); v = a == null ? null : Math.abs(a); }
     else if (s.startsWith('pi', i)) { i += 2; v = Math.PI; }
     else if (peek() === '(') { i++; v = expr(); if (peek() !== ')') return null; i++; }
     else v = num();

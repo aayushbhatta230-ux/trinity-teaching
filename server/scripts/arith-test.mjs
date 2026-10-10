@@ -18,7 +18,9 @@ const cases = [
   { bad: true, name: 'r5 Q23 units', exp: 'e = B l v\ne = 0.2 T × 0.5 m × 4 m/s\ne = 0.1 V', opts: ['4.0 V', '0.4 V', '0.1 V', '0.8 V'], ans: 'C' },
   { bad: true, name: 'r5 Q25 solve', exp: 'Peak emf: e0 = N B A ω\n220 = 500 × B × 0.02 × 100\nB = 0.44 T', opts: ['0.44 T', '2.20 T', '1.10 T', '0.22 T'], ans: 'A' },
   { bad: true, name: 'r5 Q3 wait', exp: "e0 = N B A ω\nFor e0' = e0, A' must be 0.4 A, wait, N'ω' = 4, so A' = A / 4", opts: ['0.25', '0.5', '2', '4'], ans: 'B' },
+  { bad: true, name: 'abs distance', exp: 'Velocity v = dx / dt = 3t² - 12t + 9 = 3(t - 1)(t - 3)\nDisplacements are x(0) = 0, x(1) = 4, x(3) = 0, x(4) = 4\nTotal distance = |4 - 0| + |0 - 4| + |4 - 0| = 17 m', opts: ['17 m', '25 m', '20 m', '11 m'], ans: 'A' },
   // correct ones
+  { bad: false, name: 'abs ok', exp: 'Total distance = |4 - 0| + |0 - 4| + |4 - 0| = 12 m', opts: ['12 m', '25 m', '20 m', '4 m'], ans: 'A' },
   { bad: false, name: 'r5 Q19 solve', exp: 'Energy in inductor: U = ½ L I²\n0.8 = ½ × 0.4 × I²\nI = 2.0 A', opts: ['1.41 A', '1.0 A', '2.0 A', '4.0 A'], ans: 'C' },
   { bad: false, name: 'r5 Q20 solve', exp: 'Efficiency: η = (Vs Is / Vp Ip) × 100\n0.80 = (220 × 40) / (2200 × Ip)\nIp = 5.0 A', opts: ['4.0 A', '5.0 A', '6.25 A', '50.0 A'], ans: 'B' },
   { bad: false, name: 'r5 Q8 turns', exp: 'Transformer ratio: Vs / Vp = Ns / Np\n2200 / 220 = Ns / 200\nNs = 10 × 200 = 2000 turns', opts: ['2000', '440000', '22000', '20'], ans: 'A' },

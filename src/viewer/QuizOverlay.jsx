@@ -96,7 +96,7 @@ export default function QuizOverlay({ sel, rec, getSlides, page, onGoto, onClose
                   <button key={n} className={`btn-secondary ${count === n ? 'is-on' : ''}`} onClick={() => setCount(n)}>{n}</button>
                 ))}
               </div>
-              {count > 20 && <span className="quiz-hint">A large quiz takes about {Math.ceil(count / 15) * 15} seconds to prepare.</span>}
+              {count > 20 && <span className="quiz-hint">A large quiz takes about {Math.round((count * 4) / 60)} minutes to prepare.</span>}
             </div>
             {state.error && <div className="dialog-error" role="alert"><Icon name="alert" size={36} /> {state.error}</div>}
             <button className="btn-primary btn-wide" onClick={start} disabled={!exams.length || !offered.length || state.status === 'busy'}>
