@@ -60,6 +60,30 @@ On the home screen, **press and hold the Trinity logo for 3 seconds**. Enter the
 the access code, then tap **Save and test**. It shows how many past questions are in the bank.
 Each board has to be set up once. The same dialog shows the board's screen details, which help with support.
 
+## The question bank (IOE and IOM practice questions)
+
+The college's practice question sets (JSONL, one set for Grade 11 and a cumulative set for Grade 12) are imported with:
+
+```bash
+cd server
+node scripts/import-bank.mjs Grade11.jsonl Grade12_CUMULATIVE.jsonl bank.sql
+npx wrangler d1 execute trinity-ai --remote --file=bank.sql
+```
+
+The import:
+- strips filler wording ("Choose the correct option: …") and merges duplicates;
+- drops Mental Agility items and items without four distinct options;
+- maps MECEE-BL to IOM;
+- tags questions from the Grade 11 set as grade 11 (used for Class 11 and 12), and the rest as grade 12 (Class 12 only).
+
+Running it again replaces the previous import.
+
+These are practice questions, not past papers. The app labels them **"Question bank · IOE/IOM"**.
+
+**Answer checking.** Every question is solved independently by Gemini in the background, every 5 minutes, 15 at a time (`verifyBatch` in `src/index.js`). A question is used in class only once its key is confirmed, or, for a question with no key, once the AI has worked out an answer (shown as "worked out by AI"). Questions where the AI disagrees with the key (`verified = -2`, AI answer in `check_answer`) or finds the question ambiguous (`verified = -1`) are held back for review. `/health` shows the progress.
+
+**Chapter matching.** A question is offered only when it belongs to the open chapter: two of its specific words (question plus correct answer) appear in the slides, or one does and its topic is clearly the chapter's. `node scripts/bank-match-test.mjs bank.sql.json` shows the matches for sample chapters.
+
 ## Adding past papers
 
 Scan or download each paper as a PDF (one exam and year per file). With an answer key, pass it too.

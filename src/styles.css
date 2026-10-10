@@ -592,6 +592,7 @@ h1, h2, h3, p { margin: 0; }
 .qcard-num { width: 3.2rem; height: 3.2rem; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 1.4rem; color: #fff; background: var(--brand); }
 .qcard-source { font-size: 1.3rem; font-weight: 700; padding: 0.3rem 0.9rem; border-radius: 1rem; }
 .qcard-source.is-past { color: var(--brand-800); background: var(--gold); }
+.qcard-source.is-bank { color: #fff; background: var(--brand); }
 .qcard-source.is-practice { color: var(--ink-2); background: var(--bg-2); border: 0.125rem dashed var(--muted); }
 .qcard-topic { font-size: 1.3rem; color: var(--muted); }
 .qcard-question { font-size: 1.9rem; line-height: 1.45; font-weight: 500; color: var(--ink); white-space: pre-line; }

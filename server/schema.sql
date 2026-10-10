@@ -21,11 +21,17 @@ CREATE TABLE IF NOT EXISTS questions (
   options       TEXT NOT NULL,          -- JSON array of 4 strings (A–D)
   answer        TEXT,                   -- 'A'..'D' or NULL when unknown
   answer_source TEXT NOT NULL,          -- 'key' (official answer key) | 'ai' (worked out by AI) | 'none'
-  difficulty    INTEGER                 -- 1 (easy) .. 5 (very hard)
+  difficulty    INTEGER,                -- 1 (easy) .. 5 (very hard)
+  grade         TEXT,                   -- '11' (shown to Class 11 and 12) | '12' (Class 12 only)
+  origin        TEXT,                   -- 'bank' for the college question bank; NULL for past papers
+  explanation   TEXT,
+  verified      INTEGER NOT NULL DEFAULT 0, -- 1 checked and used | 0 waiting | -1 ambiguous | -2 AI disagrees with key
+  check_answer  TEXT                    -- the AI's answer when it disagreed with the key
 );
 
 CREATE INDEX IF NOT EXISTS idx_questions_subject ON questions(subject, portion);
 CREATE INDEX IF NOT EXISTS idx_questions_paper ON questions(paper_id);
+CREATE INDEX IF NOT EXISTS idx_questions_bank ON questions(subject, verified, grade);
 
 CREATE TABLE IF NOT EXISTS usage (
   day   TEXT PRIMARY KEY,

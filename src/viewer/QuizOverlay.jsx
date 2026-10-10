@@ -53,7 +53,7 @@ export default function QuizOverlay({ sel, rec, getSlides, page, onGoto, onClose
 
   const items = state.items || [];
   const item = items[index];
-  const pastCount = items.filter((q) => q.kind === 'past').length;
+  const pastCount = items.filter((q) => q.kind === 'past' || q.kind === 'bank').length;
 
   return (
     <div className="overlay ai-overlay">
@@ -98,7 +98,7 @@ export default function QuizOverlay({ sel, rec, getSlides, page, onGoto, onClose
             {state.demo && <div className="ai-demo">Demo mode — the AI is not connected yet</div>}
             {index === 0 && pastCount < items.length && (
               <div className="quiz-note">
-                {pastCount ? `${pastCount} real past questions matched this chapter;` : 'No past questions for this chapter are in the bank yet;'} the rest are AI practice questions and are labelled.
+                {pastCount ? `${pastCount} question${pastCount === 1 ? '' : 's'} from the IOE/IOM question bank matched this chapter;` : 'No question-bank questions match this chapter yet;'} the rest are AI practice questions and are labelled.
               </div>
             )}
             <QuestionCard

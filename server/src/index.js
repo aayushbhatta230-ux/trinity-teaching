@@ -101,7 +101,7 @@ async function handleAsk(req, env) {
 
   const weights = chapterTerms(context);
   for (const w of terms(query)) weights.set(w, (weights.get(w) || 0) + 8); // the request matters most
-  const past = await shortlist(env.DB, { subject: context.subject, portion: context.portion, exams: examsFor(context.subject, context.group), weights, limit: 30 });
+  const past = await shortlist(env.DB, { subject: context.subject, exams: examsFor(context.subject, context.group), cls: context.cls, context, weights, limit: 30 });
 
   // "MCQs on this chapter" while no past papers are loaded: give exam-style practice questions
   // instead of an empty answer.
@@ -148,7 +148,7 @@ async function handleQuiz(req, env) {
   if (!exams.length) exams = tested;
   if (!(await spend(env))) return fail("Today's AI limit for the college has been reached. It resets tomorrow.", 429);
 
-  const past = await shortlist(env.DB, { subject: context.subject, portion: context.portion, exams, weights: chapterTerms(context), limit: 80 });
+  const past = await shortlist(env.DB, { subject: context.subject, exams, cls: context.cls, context, weights: chapterTerms(context), limit: 80 });
   const q = await buildQuiz(env, { context, count, exams, past });
   return json({ items: q.items, exams, pastAvailable: past.length, demo: env.DEMO_MODE === '1', via: q.meta });
 }
@@ -172,7 +172,7 @@ async function buildQuiz(env, { context, count, exams, past }) {
       used.add(p.id);
       const q = present(p);
       // The official key wins; otherwise the AI's worked answer, labelled as such.
-      items.push({ ...q, answer: q.answer || it.answer, answerSource: q.answer ? q.answerSource : 'ai', explanation: steps(it.explanation), slide: it.slide });
+      items.push({ ...q, answer: q.answer || it.answer, answerSource: q.answer ? q.answerSource : 'ai', explanation: steps(it.explanation) || q.explanation, slide: it.slide });
     } else if (it.question && goodOptions(it.options)) {
       items.push({ kind: 'practice', style: exams.includes(it.style) ? it.style : null, unit: it.unit || null, question: it.question, options: it.options, answer: it.answer, answerSource: 'practice', explanation: steps(it.explanation), slide: it.slide });
     }
@@ -259,14 +259,55 @@ async function deletePaper(env, id) {
   return json({ deleted: id });
 }
 
+// ---------- background answer check for the question bank ----------
+
+const VERIFY_BATCH = 15;
+
+/**
+ * Runs on a schedule. Takes a few unchecked questions of one subject and has the AI solve each
+ * independently:
+ *   - answer matches the key         → verified = 1 (used in class)
+ *   - no key, AI finds one answer     → answer filled in, marked "worked out by AI", verified = 1
+ *   - AI disagrees with the key       → verified = -2, AI's answer kept in check_answer (held for review)
+ *   - ambiguous / no correct option   → verified = -1 (never used)
+ */
+async function verifyBatch(env) {
+  const next = await env.DB.prepare('SELECT subject FROM questions WHERE verified = 0 LIMIT 1').first();
+  if (!next) return { done: true };
+  const { results } = await env.DB.prepare('SELECT * FROM questions WHERE verified = 0 AND subject = ? ORDER BY id LIMIT ?').bind(next.subject, VERIFY_BATCH).all();
+  const items = results.map((q) => ({ question: q.question, options: JSON.parse(q.options) }));
+  const check = await ai.check(env, { context: { subject: next.subject, subjectLabel: next.subject, cls: '', portionLabel: '', chapter: '', title: 'Question bank check', slides: [] }, items });
+  const verdict = new Map(list(check.checks).filter((c) => Number.isInteger(c?.index)).map((c) => [c.index, c]));
+  const updates = [];
+  results.forEach((q, k) => {
+    const c = verdict.get(k);
+    if (!c) return; // not answered this time: try again next run
+    if (!c.answer) {
+      updates.push(env.DB.prepare('UPDATE questions SET verified = -1 WHERE id = ?').bind(q.id));
+    } else if (!q.answer) {
+      updates.push(env.DB.prepare("UPDATE questions SET answer = ?, answer_source = 'ai', explanation = COALESCE(NULLIF(explanation, ''), ?), verified = 1 WHERE id = ?").bind(c.answer, steps(c.explanation), q.id));
+    } else if (c.answer === q.answer) {
+      updates.push(env.DB.prepare('UPDATE questions SET verified = 1 WHERE id = ?').bind(q.id));
+    } else {
+      updates.push(env.DB.prepare('UPDATE questions SET verified = -2, check_answer = ? WHERE id = ?').bind(c.answer, q.id));
+    }
+  });
+  if (updates.length) await env.DB.batch(updates);
+  return { checked: updates.length, subject: next.subject, via: check.meta?.model };
+}
+
 export default {
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(verifyBatch(env).then((r) => console.log('bank check', JSON.stringify(r))).catch((e) => console.error('bank check failed', e?.message || e)));
+  },
+
   async fetch(req, env) {
     if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
     const url = new URL(req.url);
     try {
       if (url.pathname === '/health') {
-        const row = await env.DB.prepare('SELECT COUNT(*) AS n FROM questions').first().catch(() => ({ n: 0 }));
-        return json({ ok: true, model: ai.MODEL, demo: env.DEMO_MODE === '1', pastQuestions: row?.n ?? 0 });
+        const row = await env.DB.prepare('SELECT COUNT(*) AS n, SUM(verified = 1) AS ready, SUM(verified = 0) AS waiting FROM questions').first().catch(() => ({ n: 0 }));
+        return json({ ok: true, model: ai.MODEL, demo: env.DEMO_MODE === '1', pastQuestions: row?.ready ?? 0, bank: { total: row?.n ?? 0, ready: row?.ready ?? 0, waitingForCheck: row?.waiting ?? 0 } });
       }
       if (url.pathname.startsWith('/admin/')) {
         const token = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');

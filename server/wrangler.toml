@@ -29,3 +29,8 @@ CF_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
 #                      only Workers AI is used)
 #   ACCESS_CODE        school access code typed once on each board
 #   ADMIN_TOKEN        used by scripts/ingest-papers.mjs to add past papers
+
+# Background answer check for the question bank (src/index.js → verifyBatch): every 5 minutes,
+# Gemini only; it stops by itself when every question has been checked.
+[triggers]
+crons = ["*/5 * * * *"]
