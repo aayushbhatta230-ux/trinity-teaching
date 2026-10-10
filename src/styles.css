@@ -770,3 +770,8 @@ h1, h2, h3, p { margin: 0; }
 .ai-error { align-items: center; }
 .ai-error > span { flex: 1; }
 .ai-retry { min-height: 4.5rem; font-size: 1.6rem; flex: none; }
+
+/* Quiz: question count (stepper + quick picks) */
+.quiz-count { align-items: center; }
+.quiz-count .stepper-input { margin-right: 0.6rem; }
+.quiz-hint { font-size: 1.35rem; color: var(--muted); }

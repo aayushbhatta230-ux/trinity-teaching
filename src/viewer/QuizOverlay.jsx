@@ -12,7 +12,9 @@ const EXAMS = [
   { id: 'IOE', label: 'IOE (Engineering)' },
   { id: 'IOM', label: 'IOM (Medical)' },
 ];
-const COUNTS = [5, 10, 15];
+const COUNTS = [10, 20, 30, 50];
+const MIN_COUNT = 5;
+const MAX_COUNT = 50;
 // Which entrance exams test each subject (official syllabi) …
 const TESTED = {
   physics: ['IOE', 'IOM'],
@@ -79,12 +81,22 @@ export default function QuizOverlay({ sel, rec, getSlides, page, onGoto, onClose
               </div>
             </div>
             <div className="quiz-row">
-              <span className="field-label">Questions</span>
-              <div className="ai-chips">
+              <span className="field-label">Questions (toughest first)</span>
+              <div className="ai-chips quiz-count">
+                <div className="stepper-input">
+                  <button onClick={() => setCount((c) => Math.max(MIN_COUNT, c - 5))} disabled={count <= MIN_COUNT} aria-label="Fewer questions">
+                    <Icon name="minus" size={36} stroke={2.25} />
+                  </button>
+                  <span className="stepper-value">{count}</span>
+                  <button onClick={() => setCount((c) => Math.min(MAX_COUNT, c + 5))} disabled={count >= MAX_COUNT} aria-label="More questions">
+                    <Icon name="plus" size={36} stroke={2.25} />
+                  </button>
+                </div>
                 {COUNTS.map((n) => (
                   <button key={n} className={`btn-secondary ${count === n ? 'is-on' : ''}`} onClick={() => setCount(n)}>{n}</button>
                 ))}
               </div>
+              {count > 20 && <span className="quiz-hint">A large quiz takes about {Math.ceil(count / 15) * 15} seconds to prepare.</span>}
             </div>
             {state.error && <div className="dialog-error" role="alert"><Icon name="alert" size={36} /> {state.error}</div>}
             <button className="btn-primary btn-wide" onClick={start} disabled={!exams.length || !offered.length || state.status === 'busy'}>

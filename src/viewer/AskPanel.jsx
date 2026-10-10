@@ -11,7 +11,7 @@ import { useBackHandler } from '../lib/native.js';
 
 const SUGGESTIONS = [
   'Key formulas in this chapter',
-  'Toughest MCQs on this chapter',
+  '10 toughest MCQs on this chapter',
   'Explain the current slide simply',
   'Take me to the slide about ',
 ];

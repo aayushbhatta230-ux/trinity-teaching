@@ -9,6 +9,7 @@ import * as ai from './ai.js';
 import * as demo from './demo.js';
 import { chapterTerms, terms, shortlist, present, listForPrompt } from './bank.js';
 import { examsFor } from './syllabus.js';
+import { checkWorking } from './arith.js';
 
 const CORS = {
   'access-control-allow-origin': '*',
@@ -103,16 +104,19 @@ async function handleAsk(req, env) {
   for (const w of terms(query)) weights.set(w, (weights.get(w) || 0) + 8); // the request matters most
   const past = await shortlist(env.DB, { subject: context.subject, exams: examsFor(context.subject, context.group), cls: context.cls, context, weights, limit: 30 });
 
-  // "MCQs on this chapter" while no past papers are loaded: give exam-style practice questions
-  // instead of an empty answer.
+  // "MCQs on this chapter": this chapter's question-bank items, then exam-style practice
+  // questions for the rest, toughest first.
   const exams = examsFor(context.subject, context.group);
-  if (env.DEMO_MODE !== '1' && !past.length && exams.length && MCQ_REQUEST.test(query)) {
-    const q = await buildQuiz(env, { context, count: 5, exams, past });
+  if (env.DEMO_MODE !== '1' && exams.length && MCQ_REQUEST.test(query)) {
+    // "20 toughest MCQs" asks for 20; otherwise 10.
+    const asked = Number((query.match(/\b(\d{1,2})\b/) || [])[1]);
+    const q = await buildQuiz(env, { context, count: Math.min(30, Math.max(3, asked || 10)), exams, past });
+    const fromBank = q.items.filter((x) => x.kind !== 'practice').length;
     return json({
       action: 'show_questions',
-      answer: q.items.length
-        ? 'No past papers are loaded yet, so here are practice questions in entrance-exam style, hardest first.'
-        : 'No questions could be made for this chapter yet.',
+      answer: !q.items.length
+        ? 'No questions could be made for this chapter yet.'
+        : `${q.items.length} toughest questions for this chapter, hardest first${fromBank ? ` (${fromBank} from the question bank, the rest AI practice)` : ' (AI practice in entrance-exam style)'}.`,
       slide: null, citedSlides: [], questions: q.items, demo: false, via: q.meta,
     });
   }
@@ -140,7 +144,7 @@ async function handleQuiz(req, env) {
   const body = await req.json().catch(() => null);
   const context = readContext(body);
   if (!context) return fail('Missing chapter.', 400);
-  const count = Math.min(20, Math.max(3, Number(body?.count) || 10));
+  const count = Math.min(MAX_QUIZ, Math.max(3, Number(body?.count) || 10));
   // Only exams that actually test this subject (e.g. Biology group: IOM and IOE; Physical group: IOE).
   const tested = examsFor(context.subject, context.group);
   if (!tested.length) return fail('The entrance exams for this group do not test this subject, so there is no quiz for it.', 400);
@@ -153,33 +157,158 @@ async function handleQuiz(req, env) {
   return json({ items: q.items, exams, pastAvailable: past.length, demo: env.DEMO_MODE === '1', via: q.meta });
 }
 
-/** Asks for a quiz and keeps only valid items: real past questions by id, or labelled practice. */
-async function buildQuiz(env, { context, count, exams, past }) {
-  const started = Date.now();
-  const r = env.DEMO_MODE === '1'
-    ? demo.quiz({ context, count, past })
-    : await ai.quiz(env, { context: compact(context, 40000), count: count + 2, exams, pastList: listForPrompt(past) }); // 2 spare in case the check drops some
+export const MAX_QUIZ = 50;
+const BATCH = 15;     // practice questions per AI call (fewer calls stay under free-tier rate limits)
+const PARALLEL = 2;   // AI calls at the same time (more trips the free-tier rate limit)
 
-  const byId = new Map(past.map((p) => [p.id, p]));
-  const used = new Set();
+/**
+ * A quiz of `count` questions, toughest first:
+ *   1. question-bank items that belong to this chapter (answers already checked), hardest first;
+ *   2. AI practice questions for the rest, written in parallel batches over different parts of the
+ *      chapter, each rated for difficulty, re-solved by the answer check, then merged hardest first.
+ */
+async function buildQuiz(env, { context, count, exams, past }) {
+  if (env.DEMO_MODE === '1') {
+    const r = demo.quiz({ context, count, past });
+    const items = list(r.items).filter((it) => it?.question && goodOptions(it.options))
+      .map((it) => ({ kind: 'practice', style: it.style, unit: it.unit, question: it.question, options: it.options, answer: it.answer, answerSource: 'practice', explanation: steps(it.explanation), slide: it.slide, difficulty: 3 }));
+    return { items: items.slice(0, count), meta: r.meta };
+  }
+
+  const bank = [...past]
+    .sort((a, b) => (b.difficulty || 3) - (a.difficulty || 3))
+    .slice(0, count)
+    .map((p) => ({ ...present(p), difficulty: p.difficulty || 3 }));
+
+  const need = count - bank.length;
+  let practice = [];
+  let meta = null;
+  if (need > 0) ({ items: practice, meta } = await practiceQuestions(env, { context, exams, need, avoid: bank }));
+
+  // Toughest first; the same question never twice.
+  const seen = new Set();
+  const all = [...bank, ...practice]
+    .sort((a, b) => (b.difficulty || 3) - (a.difficulty || 3))
+    .filter((q) => {
+      const key = String(q.question).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  return { items: balanceAnswers(all.slice(0, count)), meta };
+}
+
+/** Splits the chapter's slides into `n` consecutive parts (every part gets at least one slide). */
+function slideParts(slides, n) {
+  if (slides.length <= n) return Array.from({ length: n }, () => slides);
+  const size = Math.ceil(slides.length / n);
+  return Array.from({ length: n }, (_, i) => slides.slice(i * size, (i + 1) * size)).filter((p) => p.length);
+}
+
+/** Runs async tasks with at most `limit` at once; returns the settled results in order. */
+async function runLimited(tasks, limit) {
+  const results = new Array(tasks.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < tasks.length) {
+      const i = next++;
+      try { results[i] = { ok: true, value: await tasks[i]() }; } catch (error) { results[i] = { ok: false, error }; }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, tasks.length) }, worker));
+  return results;
+}
+
+const shuffled = (a) => {
+  const r = [...a];
+  for (let i = r.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [r[i], r[j]] = [r[j], r[i]];
+  }
+  return r;
+};
+
+// Options that name other options ("Both A and B", "All of the above") must keep their order.
+const LETTER_OPTION = /\b(both|all|none|neither)\b.*\b(above|these|[A-D] and [A-D])\b|\b[A-D] and [A-D]\b/i;
+
+/**
+ * Spreads the right answers evenly over A–D across the whole quiz (the AI puts most of them
+ * under A or B). Each question's options are reordered so its answer lands on the next letter
+ * from a shuffled, balanced deal.
+ */
+function balanceAnswers(items) {
+  const deal = shuffled(Array.from({ length: items.length }, (_, i) => 'ABCD'[i % 4]));
+  return items.map((q, n) => {
+    const right = 'ABCD'.indexOf(q.answer);
+    if (right < 0 || q.options.some((o) => LETTER_OPTION.test(String(o)))) return q;
+    const target = 'ABCD'.indexOf(deal[n]);
+    const others = shuffled([0, 1, 2, 3].filter((k) => k !== right));
+    const order = [...others];
+    order.splice(target, 0, right);
+    return { ...q, options: order.map((k) => q.options[k]), answer: deal[n] };
+  });
+}
+
+/** Drops AI-written questions whose worked solution has an arithmetic slip or contradicts its key. */
+function arithmeticOk(q) {
+  const r = checkWorking(q.explanation, q.options, q.answer);
+  if (!r.ok) console.log('dropped (arithmetic):', r.reason, '|', String(q.question).slice(0, 80));
+  return r.ok;
+}
+
+const PRACTICE_DEADLINE_MS = 150000;
+
+/**
+ * Practice questions for the part of the quiz the bank cannot fill. Batches of up to 10 cover
+ * different parts of the chapter; every batch's answers are re-solved by the check. If batches
+ * fail (rate limits on a busy day), further rounds top the quiz up while time allows.
+ */
+async function practiceQuestions(env, { context, exams, need, avoid }) {
+  const deadline = Date.now() + PRACTICE_DEADLINE_MS;
   const items = [];
-  for (const it of list(r.items)) {
-    if (!it || typeof it !== 'object') continue; // skip anything malformed from the model
-    if (items.length >= count + 2) break;
-    if (it.question_id != null) {
-      const p = byId.get(it.question_id);
-      if (!p || used.has(p.id)) continue; // never show an id the AI made up
-      used.add(p.id);
-      const q = present(p);
-      // The official key wins; otherwise the AI's worked answer, labelled as such.
-      items.push({ ...q, answer: q.answer || it.answer, answerSource: q.answer ? q.answerSource : 'ai', explanation: steps(it.explanation) || q.explanation, slide: it.slide });
-    } else if (it.question && goodOptions(it.options)) {
-      items.push({ kind: 'practice', style: exams.includes(it.style) ? it.style : null, unit: it.unit || null, question: it.question, options: it.options, answer: it.answer, answerSource: 'practice', explanation: steps(it.explanation), slide: it.slide });
+  let meta = null;
+  let lastError = null;
+  const rounds = [];
+  for (let round = 0; items.length < need && round < 4 && Date.now() < deadline - 25000; round++) {
+    const short = need - items.length;
+    const parts = slideParts(context.slides, Math.ceil(short / BATCH));
+    const avoidText = [...avoid, ...items].map((q) => `- ${q.question}`).join('\n');
+    const tasks = parts.map((slides, i) => async () => {
+      const n = Math.ceil(short / parts.length);
+      const ctx = compact({ ...context, slides }, 30000);
+      const focus = parts.length > 1
+        ? (slides === context.slides
+          ? `This is set ${i + 1} of ${parts.length} for the same chapter: choose different sub-topics and question types from the other sets.`
+          : `This is set ${i + 1} of ${parts.length}: write questions on these slides only.`)
+        : '';
+      const r = await ai.quiz(env, { context: ctx, count: n + 3, exams, pastList: '', avoid: avoidText, focus });
+      const fresh = list(r.items)
+        .filter((it) => it && typeof it === 'object' && it.question_id == null && it.question && goodOptions(it.options) && /^[ABCD]$/.test(it.answer))
+        .map((it) => ({
+          kind: 'practice', style: exams.includes(it.style) ? it.style : null, unit: it.unit || null,
+          question: it.question, options: it.options, answer: it.answer, answerSource: 'practice',
+          explanation: steps(it.explanation), slide: it.slide, difficulty: Math.min(5, Math.max(1, Number(it.difficulty) || 3)),
+        }));
+      // Accuracy first: every AI-written answer is re-solved, then every calculation in its
+      // worked solution is recomputed exactly, before it reaches the board.
+      const checked = await checkAnswers(env, ctx, fresh);
+      return { items: checked.filter(arithmeticOk), meta: r.meta };
+    });
+    const t0 = Date.now();
+    const done = await runLimited(tasks, PARALLEL);
+    rounds.push({ batches: done.length, ok: done.filter((d) => d.ok).length, secs: Math.round((Date.now() - t0) / 1000), errors: done.filter((d) => !d.ok).map((d) => String(d.error?.message || d.error).slice(0, 80)) });
+    for (const d of done) {
+      if (d.ok) { items.push(...d.value.items); meta ||= d.value.meta; } else lastError = d.error;
+    }
+    if (!done.some((d) => d.ok) && round > 0) break; // still nothing after a pause: stop
+    // Some batches were rate-limited: let the free tier's per-minute window reset, then top up.
+    if (done.some((d) => !d.ok) && items.length < need) {
+      const pause = Math.min(20000, deadline - Date.now() - 45000);
+      if (pause > 3000) await new Promise((r) => setTimeout(r, pause));
     }
   }
-  // The answer check runs when the quiz came quickly enough; a slow day never doubles the wait.
-  const checked = env.DEMO_MODE === '1' || Date.now() - started > 35000 ? items : await checkAnswers(env, context, items);
-  return { items: checked.slice(0, count), meta: r.meta };
+  if (!items.length && lastError) throw lastError; // report why (e.g. AI busy)
+  return { items, meta: { ...(meta || {}), rounds } };
 }
 
 /**

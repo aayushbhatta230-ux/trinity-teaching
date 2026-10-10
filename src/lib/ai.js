@@ -91,7 +91,7 @@ export function chapterContext(sel, rec, slides, currentSlide) {
 }
 
 export const askAi = (context, query) => call('/ask', { body: { context, query }, timeout: 100000 });
-export const quizAi = (context, { count, exams }) => call('/quiz', { body: { context, count, exams }, timeout: 180000 });
+export const quizAi = (context, { count, exams }) => call('/quiz', { body: { context, count, exams }, timeout: 240000 });
 
 // ---------- offline slide search ----------
 

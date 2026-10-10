@@ -33,11 +33,12 @@ const QUIZ_RULES = `${RULES_COMMON}
 Build a classroom quiz of the requested length for this chapter.
 - Choose from QUESTION BANK only questions that test what this chapter's SLIDES teach. Never use a question about a topic this chapter does not cover.
 - Prefer the toughest ones: multi-step numericals, conceptual traps, questions that combine ideas. Order the quiz hardest first.
+- Rate every item's difficulty honestly from 1 (direct recall) to 5 (the hardest items in a real IOE or IOM paper). Write practice questions at difficulty 4 or 5: two or more steps, a combination of ideas, a common misconception as a distractor, or a numerical with a twist. Avoid single-fact recall unless the slides offer nothing harder.
 - Never include two questions that test the same fact or are rewordings of each other; each question must test something different.
 - Use past questions exactly as given: set question_id and leave question and options null. Never change their wording, options or answer.
 - If a past question has no answer in the key, solve it carefully step by step and give your answer; the app labels it "answer worked out by AI".
 - Only if there are not enough suitable past questions, add practice questions you write yourself. Each must test a topic that is both in the SLIDES and in a unit of the ENTRANCE EXAM SYLLABUS for the chosen exams, written in that exam's question style at the hardest level its paper uses (IOE: multi-step numericals; IOM: application-level items with close distractors). Model them on the question types that recur in real IOE and IOM papers, from your general knowledge of those exams: typical traps, numbers that come out cleanly, assertion-style and "which of the following" items for IOM, multi-step numericals and graph or limiting-case questions for IOE. Write every practice question fresh; never present one as a specific past paper's question. Spread them over the chosen exams and favour units with more questions. Before writing each item, solve it yourself and check every calculation. Exactly one option must be correct beyond doubt and the other three clearly wrong; avoid vague or hedged wording (such as "ideal", "primarily", "mostly"), trick questions about wording, and options that are partly true. Drop any item you are not certain of. For those set question_id null, fill question, four options and answer, and set style to the exam and unit to the syllabus unit. Never present a practice question as a past question.
-- For every item give the explanation as a short worked solution: 2 to 4 lines separated by line breaks, each line one step (the formula used, the substitution, the result) or one short reason. No line starts with a bullet character; the app adds bullets. Give the related slide number if there is one.
+- For every item give the explanation as a short worked solution: 2 to 4 lines separated by line breaks, each line one step (the formula used, the substitution, the result) or one short reason. Write numbers in the substitution line and make the last line state the final value with its unit, exactly matching the correct option. Never refer to options by letter (the app reorders them). No line starts with a bullet character; the app adds bullets. Give the related slide number if there is one.
 - Options are the full answer texts, never the letters. Example of one practice item:
   {"question_id": null, "question": "A 0.5 m rod moves at 4 m/s at right angles to a 0.2 T field. The emf across its ends is", "options": ["0.1 V", "0.4 V", "0.8 V", "4 V"], "answer": "B", "explanation": "Motional emf: e = Blv\\ne = 0.2 × 0.5 × 4\\ne = 0.4 V", "slide": 2, "style": "IOE", "unit": "Electricity and magnetism"}`;
 
@@ -61,7 +62,7 @@ const QUIZ_SCHEMA = {
       type: 'array',
       items: {
         type: 'object',
-        required: ['question_id', 'question', 'options', 'answer', 'explanation', 'slide', 'style', 'unit'],
+        required: ['question_id', 'question', 'options', 'answer', 'explanation', 'slide', 'style', 'unit', 'difficulty'],
         properties: {
           question_id: { type: ['integer', 'null'] },
           question: { type: ['string', 'null'] },
@@ -70,6 +71,7 @@ const QUIZ_SCHEMA = {
           explanation: { type: 'string' },
           slide: { type: ['integer', 'null'] },
           style: { type: ['string', 'null'], enum: ['IOE', 'IOM', null] },
+          difficulty: { type: 'integer', enum: [1, 2, 3, 4, 5] },
           unit: { type: ['string', 'null'] },
         },
       },
@@ -281,15 +283,18 @@ export function ask(env, { context, query, pastList, exams }) {
   });
 }
 
-export function quiz(env, { context, count, pastList, exams }) {
+export function quiz(env, { context, count, pastList, exams, avoid = '', focus = '' }) {
   return callModel(env, {
     kind: 'quiz',
     rules: QUIZ_RULES,
     context,
     exams,
-    userText: `QUESTION BANK\n${pastList || '(none available for this chapter yet)'}\n\nBuild a quiz of ${count} questions for this chapter for these exams: ${(exams || []).join(', ')}.`,
+    userText: `QUESTION BANK\n${pastList || '(none available for this chapter yet)'}\n\n`
+      + (avoid ? `ALREADY IN THE QUIZ (do not repeat or reword these)\n${avoid}\n\n` : '')
+      + (focus ? `${focus}\n\n` : '')
+      + `Build a quiz of ${count} questions for this chapter for these exams: ${(exams || []).join(', ')}.`,
     schema: QUIZ_SCHEMA,
-    maxTokens: 12000,
+    maxTokens: Math.min(16000, 1500 + count * 900),
   });
 }
 
@@ -297,7 +302,9 @@ export function quiz(env, { context, count, pastList, exams }) {
 
 const CHECK_RULES = `You are checking multiple-choice questions written for +2 Science students preparing for the IOE and IOM entrance exams, before they are shown in class.
 For each question, ignore the proposed answer and solve the question yourself, carefully and step by step, checking every calculation.
-- If exactly one option is clearly correct, return its letter and a short worked solution of 2 to 4 lines separated by line breaks (formula, substitution, result), in Unicode notation such as ½MR², μ₀, θ, ×, 10⁻³.
+- If exactly one option is clearly correct, return its letter and a short worked solution of 2 to 4 lines separated by line breaks (formula, substitution, result), in Unicode notation such as ½MR², μ₀, θ, ×, 10⁻³. Work the arithmetic out digit by digit; the last line states the final value, which must equal the option you return. Never refer to options by letter in the solution.
+- If your computed value is not among the options, return answer null.
+- Check the result makes physical sense before accepting it (for example a step-down transformer has more primary turns than secondary turns, so its primary current is smaller than its secondary current; a ratio "1:20" for a step-down transformer means Ns:Np). If the question's data or wording is self-contradictory, return answer null.
 - If no option is correct, more than one could be correct, or the question is vague or depends on wording, return answer null so the question is dropped.
 Reply with JSON only, matching the requested shape, with one entry per question in the same order.`;
 
