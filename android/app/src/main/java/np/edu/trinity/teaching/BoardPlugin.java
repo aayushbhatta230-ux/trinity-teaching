@@ -17,7 +17,7 @@ public class BoardPlugin extends Plugin {
     @PluginMethod
     public void setImmersive(PluginCall call) {
         boolean on = Boolean.TRUE.equals(call.getBoolean("on", false));
-        ((MainActivity) getActivity()).setImmersive(on);
+        ((MainActivity) getActivity()).setBoardImmersive(on);
         JSObject ret = new JSObject();
         ret.put("immersive", on);
         call.resolve(ret);

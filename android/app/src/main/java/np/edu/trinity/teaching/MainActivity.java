@@ -40,7 +40,7 @@ public class MainActivity extends BridgeActivity {
     }
 
     /** Called by BoardPlugin: hide all system bars (true) or keep the board's tools available (false). */
-    void setImmersive(boolean on) {
+    void setBoardImmersive(boolean on) {
         immersive = on;
         runOnUiThread(this::applyBars);
     }
