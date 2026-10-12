@@ -48,3 +48,15 @@ export const desktopApp = typeof window !== 'undefined' ? window.trinityDesktop 
 
 /** True while a dialog/overlay is open (used to pause the idle reset). */
 export const hasOpenOverlay = () => handlers.length > 0;
+
+/**
+ * Board system UI (Android app, version 1.6 and later): `true` hides every system bar for full
+ * screen presentation; `false` keeps the board's own tools, such as its annotation pen, available.
+ * Older app shells without the Board plugin, browsers and Windows simply ignore it.
+ */
+const Board = isNativeApp ? Capacitor.registerPlugin('Board') : null;
+export function setBoardImmersive(on) {
+  if (!Board) return;
+  Board.setImmersive({ on: !!on }).catch(() => {});
+}
+export const hasBoardTools = isNativeApp;

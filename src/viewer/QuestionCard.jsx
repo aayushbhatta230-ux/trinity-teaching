@@ -6,7 +6,8 @@ const LETTERS = ['A', 'B', 'C', 'D'];
 /** "IOE 2079 · Q23" for a real past question, "AI practice question" otherwise. */
 export function sourceLabel(q) {
   if (q.kind === 'bank') return `Question bank · ${q.exam}`;
-  if (q.kind !== 'past') return q.style ? `AI practice · ${q.style} style` : 'AI practice question';
+  const type = QTYPE[q.qtype];
+  if (q.kind !== 'past') return [q.style ? `AI practice · ${q.style} style` : 'AI practice question', type].filter(Boolean).join(' · ');
   return [`${q.exam}${q.year ? ` ${q.year}` : ''}`, q.qno ? `Q${q.qno}` : ''].filter(Boolean).join(' · ');
 }
 

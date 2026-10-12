@@ -1,6 +1,6 @@
 /**
- * Read-only presentation viewer for uploaded chapters (PDF, PowerPoint or text). Deliberately has no editing,
- * pen, annotation or highlight tools — only page navigation, zoom and full screen.
+ * Presentation viewer for uploaded chapters (PDF, PowerPoint or text): page navigation, zoom, full screen,
+ * and a built-in pen for drawing over slides (kept in memory, never saved into the file).
  */
 import { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react';
 import Icon from '../components/Icon.jsx';
@@ -11,7 +11,8 @@ import { openDocument } from '../lib/documents.js';
 import AskPanel from './AskPanel.jsx';
 import QuizOverlay from './QuizOverlay.jsx';
 import { formatDate, formatSize } from '../lib/format.js';
-import { isNativeApp, useBackHandler } from '../lib/native.js';
+import { isNativeApp, useBackHandler, setBoardImmersive, hasBoardTools } from '../lib/native.js';
+import { InkLayer, InkTools, PEN_COLOURS } from './InkLayer.jsx';
 
 const ZOOMS = [1, 1.25, 1.5, 2, 2.5, 3];
 
@@ -81,6 +82,21 @@ export default function Viewer({ sel, id, page, go }) {
   return <DocViewer {...state} sel={sel} page={page} go={go} />;
 }
 
+/** The current slide as a JPEG data URL (PDF slides render to a canvas), or null. */
+function slideImage(el) {
+  const c = el?.querySelector('canvas');
+  if (!c || !c.width) return null;
+  const scale = Math.min(1, 1280 / Math.max(c.width, c.height));
+  const out = document.createElement('canvas');
+  out.width = Math.round(c.width * scale);
+  out.height = Math.round(c.height * scale);
+  const g = out.getContext('2d');
+  g.fillStyle = '#fff';
+  g.fillRect(0, 0, out.width, out.height);
+  g.drawImage(c, 0, 0, out.width, out.height);
+  try { return out.toDataURL('image/jpeg', 0.85); } catch { return null; }
+}
+
 /** A page thumbnail that renders only once it scrolls into view. */
 function Thumb({ doc, number, width, aspect }) {
   const ref = useRef(null);
@@ -106,8 +122,23 @@ function DocViewer({ sel, rec, doc, aspect, page, go }) {
   const [grid, setGrid] = useState(false);
   const [ai, setAi] = useState(null); // 'ask' | 'quiz' | null
   const rem = useRemPx() / 16;
+  // Built-in pen: ink per slide, kept while the chapter is open.
+  const [pen, setPen] = useState(false);
+  const [tool, setTool] = useState('pen');
+  const [colour, setColour] = useState(PEN_COLOURS[0]);
+  const [ink, setInk] = useState({});
+  const strokes = ink[p] || [];
+  // Accepts a new list or an updater, so quick strokes never overwrite each other.
+  const setStrokes = useCallback((next) => setInk((m) => ({ ...m, [p]: typeof next === 'function' ? next(m[p] || []) : next })), [p]);
   useBackHandler(grid, () => setGrid(false));
-  useBackHandler(present && !grid, togglePresent);
+  useBackHandler(pen && !grid, () => setPen(false));
+  useBackHandler(present && !grid && !pen, togglePresent);
+
+  // Android boards: full screen hides every system bar; otherwise the board's own tools
+  // (its annotation pen and side toolbar) stay available. "Board pen" brings them back on demand.
+  useEffect(() => { setBoardImmersive(present); }, [present]);
+  useEffect(() => () => setBoardImmersive(false), []);
+  const boardPen = hasBoardTools ? () => { setPen(false); setBoardImmersive(false); } : null;
 
   // Full screen shows only the slide; tapping the middle shows small controls for 3 seconds.
   const [hud, setHud] = useState(false);
@@ -133,7 +164,7 @@ function DocViewer({ sel, rec, doc, aspect, page, go }) {
   // Keyboard and presentation clickers.
   useEffect(() => {
     const on = (e) => {
-      if (ai || e.target.closest?.('input, textarea')) return;
+      if (ai || pen || e.target.closest?.('input, textarea')) return;
       if (['ArrowRight', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); goto(p + 1); }
       else if (['ArrowLeft', 'PageUp'].includes(e.key)) { e.preventDefault(); goto(p - 1); }
       else if (e.key === 'Home') goto(1);
@@ -146,7 +177,7 @@ function DocViewer({ sel, rec, doc, aspect, page, go }) {
     };
     window.addEventListener('keydown', on);
     return () => window.removeEventListener('keydown', on);
-  }, [goto, p, total, zoomBy, togglePresent, ai]);
+  }, [goto, p, total, zoomBy, togglePresent, ai, pen]);
 
   // Fit the page to the available area.
   const areaRef = useRef(null);
@@ -192,6 +223,7 @@ function DocViewer({ sel, rec, doc, aspect, page, go }) {
   const gesture = useRef({});
   const onPointerDown = (e) => { gesture.current = { ...gesture.current, x: e.clientX, y: e.clientY, type: e.pointerType }; };
   const onPointerUp = (e) => {
+    if (pen) return;
     const g = gesture.current;
     const dx = e.clientX - g.x;
     const dy = e.clientY - g.y;
@@ -259,7 +291,10 @@ function DocViewer({ sel, rec, doc, aspect, page, go }) {
           onPointerUp={onPointerUp}
           onDoubleClick={() => { if (!present && gesture.current.type !== 'touch') setZoom((z) => (z === 1 ? 2 : 1)); }}
         >
-          <div ref={pageRef} className={`canvas-page ${rendered ? '' : 'is-rendering'}`} style={{ width: cssW, height: cssW / aspect }} />
+          <div className="canvas-stage" style={{ width: cssW, height: cssW / aspect }}>
+            <div ref={pageRef} className={`canvas-page ${rendered ? '' : 'is-rendering'}`} style={{ width: cssW, height: cssW / aspect }} />
+            <InkLayer active={pen} tool={tool} colour={colour} aspect={aspect} strokes={strokes} setStrokes={setStrokes} />
+          </div>
         </div>
       </div>
 
@@ -268,6 +303,8 @@ function DocViewer({ sel, rec, doc, aspect, page, go }) {
           <button className="hud-btn" onClick={() => goto(p - 1)} disabled={p <= 1} aria-label="Previous slide"><Icon name="back" size={40} stroke={2.25} /></button>
           <span className="hud-page"><b>{p}</b> / {total}</span>
           <button className="hud-btn" onClick={() => goto(p + 1)} disabled={p >= total} aria-label="Next slide"><Icon name="next" size={40} stroke={2.25} /></button>
+          <button className="hud-btn hud-pen" onClick={() => setPen(true)}><Icon name="pen" size={34} /><span>Pen</span></button>
+          {boardPen && <button className="hud-btn hud-pen" onClick={boardPen}><Icon name="monitor" size={34} /><span>Board pen</span></button>}
           <button className="hud-btn hud-exit" onClick={togglePresent}><Icon name="minimize" size={34} /><span>Exit full screen</span></button>
         </div>
       )}
@@ -291,6 +328,9 @@ function DocViewer({ sel, rec, doc, aspect, page, go }) {
           <button className="ctl" onClick={() => zoomBy(1)} disabled={zoom >= ZOOMS[ZOOMS.length - 1]} aria-label="Zoom in"><Icon name="zoomIn" size={44} /></button>
         </div>
         <div className="controls-group">
+          <button className={`ctl ${pen ? 'ctl-primary' : ''}`} onClick={() => setPen((v) => !v)}>
+            <Icon name="pen" size={40} /><span>Pen</span>
+          </button>
           <button className="ctl ctl-ai" onClick={() => setAi('ask')}>
             <Icon name="sparkles" size={40} /><span>Ask AI</span>
           </button>
@@ -304,7 +344,13 @@ function DocViewer({ sel, rec, doc, aspect, page, go }) {
         </div>
       </footer>}
 
-      {ai === 'ask' && <AskPanel sel={sel} rec={rec} getSlides={getSlides} page={p} onGoto={goto} onClose={() => setAi(null)} />}
+      {pen && (
+        <InkTools tool={tool} setTool={setTool} colour={colour} setColour={setColour}
+          canUndo={strokes.length > 0} onUndo={() => setStrokes(strokes.slice(0, -1))} onClear={() => setStrokes([])}
+          onClose={() => setPen(false)} boardTools={boardPen} />
+      )}
+
+      {ai === 'ask' && <AskPanel sel={sel} rec={rec} getSlides={getSlides} getSlideImage={() => slideImage(pageRef.current)} page={p} onGoto={goto} onClose={() => setAi(null)} />}
       {ai === 'quiz' && <QuizOverlay sel={sel} rec={rec} getSlides={getSlides} page={p} onGoto={goto} onClose={() => setAi(null)} />}
 
       {grid && (

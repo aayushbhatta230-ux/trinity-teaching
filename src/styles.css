@@ -775,3 +775,33 @@ h1, h2, h3, p { margin: 0; }
 .quiz-count { align-items: center; }
 .quiz-count .stepper-input { margin-right: 0.6rem; }
 .quiz-hint { font-size: 1.35rem; color: var(--muted); }
+
+/* ---------- built-in pen ---------- */
+.canvas-stage { position: relative; margin: auto; flex: none; }
+.canvas-stage > .canvas-page { margin: 0; }
+.ink { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
+.ink.is-active { pointer-events: auto; cursor: crosshair; touch-action: none; }
+.ink.is-erasing { cursor: cell; }
+.ink-tools {
+  position: absolute; left: 1.5rem; top: 50%; transform: translateY(-50%); z-index: 30;
+  display: flex; flex-direction: column; align-items: center; gap: 0.7rem;
+  padding: 1rem 0.8rem; border-radius: 1.6rem; background: var(--surface);
+  box-shadow: var(--shadow-lg); border: 0.125rem solid var(--line);
+}
+.ink-colour { width: 3.6rem; height: 3.6rem; border-radius: 50%; border: 0.3rem solid #fff; box-shadow: 0 0 0 0.125rem var(--line); }
+.ink-colour.is-on { box-shadow: 0 0 0 0.3rem var(--brand); }
+.ink-btn {
+  width: 6.4rem; padding: 0.55rem 0.2rem; border-radius: 1rem; display: flex; flex-direction: column; align-items: center; gap: 0.2rem;
+  font-size: 1.05rem; font-weight: 600; color: var(--ink-2);
+}
+.ink-btn.is-on { background: var(--brand-50); color: var(--brand); }
+.ink-btn:disabled { opacity: 0.35; }
+.ink-done { background: var(--brand); color: #fff; margin-top: 0.3rem; }
+.hud-pen { padding: 0 1.2rem; display: inline-flex; align-items: center; gap: 0.5rem; }
+/* ---------- Ask AI: pictures ---------- */
+.ai-attach { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; padding: 0 2rem 0.8rem; }
+.ai-thumb { position: relative; height: 6.5rem; border-radius: 0.8rem; overflow: hidden; border: 0.125rem solid var(--line); }
+.ai-thumb img { height: 100%; display: block; }
+.ai-thumb button { position: absolute; top: 0.2rem; right: 0.2rem; background: rgba(0, 0, 0, 0.6); color: #fff; border-radius: 50%; width: 2.2rem; height: 2.2rem; display: grid; place-items: center; }
+.ai-answer.is-general { border-left: 0.4rem dashed var(--gold); }
+.ai-source { font-size: 1.25rem; font-weight: 600; color: var(--muted); margin-bottom: 0.6rem; }

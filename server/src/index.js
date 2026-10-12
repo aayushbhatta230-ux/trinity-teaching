@@ -93,11 +93,20 @@ function focusSlides(context, query, max = 10) {
   return all.filter((s) => keep.has(s.n));
 }
 
+/** A picture sent with Ask AI: a JPEG/PNG/WebP data URL up to about 3 MB. */
+function readImage(v) {
+  const m = typeof v === 'string' && v.match(/^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/);
+  if (!m || m[2].length > 4_000_000) return null;
+  return { mime: m[1], data: m[2] };
+}
+
 async function handleAsk(req, env) {
   const body = await req.json().catch(() => null);
   const context = readContext(body);
   const query = String(body?.query || '').trim().slice(0, 500);
   if (!context || !query) return fail('Missing chapter or question.', 400);
+  const image = readImage(body?.image);
+  if (body?.image && !image) return fail('That picture is too large or not a supported image. Try a smaller photo.', 400);
   if (!(await spend(env))) return fail("Today's AI limit for the college has been reached. It resets tomorrow.", 429);
 
   const weights = chapterTerms(context);
@@ -107,7 +116,7 @@ async function handleAsk(req, env) {
   // "MCQs on this chapter": this chapter's question-bank items, then exam-style practice
   // questions for the rest, toughest first.
   const exams = examsFor(context.subject, context.group);
-  if (env.DEMO_MODE !== '1' && exams.length && MCQ_REQUEST.test(query)) {
+  if (env.DEMO_MODE !== '1' && !image && exams.length && MCQ_REQUEST.test(query)) {
     // "20 toughest MCQs" asks for 20; otherwise 10.
     const asked = Number((query.match(/\b(\d{1,2})\b/) || [])[1]);
     const q = await buildQuiz(env, { context, count: Math.min(30, Math.max(3, asked || 10)), exams, past });
@@ -125,7 +134,7 @@ async function handleAsk(req, env) {
   const focused = { ...context, slides: focusSlides(context, query) };
   const r = env.DEMO_MODE === '1'
     ? demo.ask({ context, query, past })
-    : await ai.ask(env, { context: focused, query, exams, pastList: listForPrompt(past) });
+    : await ai.ask(env, { context: focused, query, exams, pastList: listForPrompt(past), image });
 
   const byId = new Map(past.map((p) => [p.id, p]));
   const slideOk = (n) => Number.isInteger(n) && context.slides.some((s) => s.n === n);
@@ -276,18 +285,26 @@ async function practiceQuestions(env, { context, exams, need, avoid }) {
     const tasks = parts.map((slides, i) => async () => {
       const n = Math.ceil(short / parts.length);
       const ctx = compact({ ...context, slides }, 30000);
-      const focus = parts.length > 1
+      const where = parts.length > 1
         ? (slides === context.slides
-          ? `This is set ${i + 1} of ${parts.length} for the same chapter: choose different sub-topics and question types from the other sets.`
+          ? `This is set ${i + 1} of ${parts.length} for the same chapter: choose different sub-topics from the other sets.`
           : `This is set ${i + 1} of ${parts.length}: write questions on these slides only.`)
         : '';
+      // Half of every quiz is logical and critical thinking: alternate sets focus on it entirely.
+      const reasoning = parts.length > 1 ? i % 2 === 1 : null;
+      const mix = reasoning === true
+        ? 'In this set write ONLY logical and critical-thinking questions on this chapter (no plain calculations): assertion and reason, statements (which are correct), predict what happens, cause and effect, graph or table interpretation, comparing two situations, and spotting the error in a claim. Use several of these types, all at difficulty 4 or 5.'
+        : reasoning === false
+          ? 'In this set write mostly tough multi-step numericals on this chapter, plus a few prediction or comparison questions.'
+          : 'Make about half of the questions logical and critical-thinking ones (assertion and reason, statements, predict, cause and effect, graph, compare, error spotting) and half tough numericals.';
+      const focus = [where, mix].filter(Boolean).join(' ');
       const r = await ai.quiz(env, { context: ctx, count: n + 3, exams, pastList: '', avoid: avoidText, focus });
       const fresh = list(r.items)
         .filter((it) => it && typeof it === 'object' && it.question_id == null && it.question && goodOptions(it.options) && /^[ABCD]$/.test(it.answer))
         // Right grade only: a Class 12 chapter gets Grade 12 questions, a Class 11 chapter Grade 11.
         .filter((it) => !['11', '12'].includes(String(context.cls)) || it.grade == null || String(it.grade) === String(context.cls))
         .map((it) => ({
-          kind: 'practice', style: exams.includes(it.style) ? it.style : null, unit: it.unit || null, grade: it.grade || null,
+          kind: 'practice', style: exams.includes(it.style) ? it.style : null, unit: it.unit || null, grade: it.grade || null, qtype: it.qtype || null,
           question: it.question, options: it.options, answer: it.answer, answerSource: 'practice',
           explanation: steps(it.explanation), slide: it.slide, difficulty: Math.min(5, Math.max(1, Number(it.difficulty) || 3)),
         }));

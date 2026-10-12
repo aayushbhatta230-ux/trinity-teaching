@@ -90,7 +90,29 @@ export function chapterContext(sel, rec, slides, currentSlide) {
   };
 }
 
-export const askAi = (context, query) => call('/ask', { body: { context, query }, timeout: 100000 });
+export const askAi = (context, query, image) => call('/ask', { body: { context, query, image: image || undefined }, timeout: 100000 });
+
+/** A picture file → a JPEG data URL no larger than 1280 px on its long side (keeps uploads small). */
+export function imageFileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, 1280 / Math.max(img.naturalWidth, img.naturalHeight));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.naturalWidth * k);
+      c.height = Math.round(img.naturalHeight * k);
+      const g = c.getContext('2d');
+      g.fillStyle = '#fff';
+      g.fillRect(0, 0, c.width, c.height);
+      g.drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL('image/jpeg', 0.85));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('That picture could not be opened.')); };
+    img.src = url;
+  });
+}
 export const quizAi = (context, { count, exams }) => call('/quiz', { body: { context, count, exams }, timeout: 240000 });
 
 // ---------- offline slide search ----------

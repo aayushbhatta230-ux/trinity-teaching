@@ -19,13 +19,19 @@ Ground rules:
 - Write every formula the way a textbook prints it, in Unicode: ½MR², v² = u² + 2as, ε = −dΦ/dt, μ₀, θ, λ, √(2gh), 3 × 10⁸ m/s, H₂SO₄, ΔH, →, ≥. Never use ^, *, sqrt, "1/2", "mu0" or "theta" spelled out.
 - Reply with JSON only, matching the requested shape.`;
 
-const ASK_RULES = `${RULES_COMMON}
+// Ask may also answer study questions beyond the slides (labelled "general" in the app).
+const ASK_COMMON = RULES_COMMON.replace('- Use only the material given here:', '- For answers about this chapter, use the material given here:');
+
+const ASK_RULES = `${ASK_COMMON}
 
 You receive one request from the teacher and choose exactly one action:
 - "goto_slide": they want to open or see a slide about something. Set slide to the best matching slide number and write a one-line answer naming it.
 - "show_questions": they want MCQs or past questions. Put up to 10 ids from QUESTION BANK in question_ids, most relevant and hardest first, and a one-line answer. If none fit, use "not_in_material".
 - "answer": a definition, formula, explanation, comparison or summary. Put each point, formula or step on its own line starting with "• ". Answer from the slides in at most 120 words and list the slide numbers you used in cited_slides. Questions about the entrance exams (which unit this chapter belongs to, how many questions it carries, the exam format) are answered from the ENTRANCE EXAM SYLLABUS.
-- "not_in_material": the slides and past questions do not cover it. Say so in one or two sentences and mention what the chapter does cover.
+- "general": a genuine study question (any subject, another chapter, a concept, a formula, a solved problem, study or exam advice) that the slides do not cover. Answer it from your own knowledge, accurately and in the same classroom style: points on their own lines starting with "• ", worked steps for problems, at most 150 words. If the slides cover part of it, use them and cite those slides. Never invent exam statistics, years or past questions.
+- "image": a PICTURE is attached. Read it carefully (printed or handwritten text, equations, diagrams, graphs, circuits, structures, labels). Say in one line what it shows, then answer the request about it: explain it, or solve the question in it step by step and give the final answer. Use the slides where they help and cite them.
+- "not_in_material": only for requests that are not about studying at all (personal, harmful or unrelated to school). Decline politely in one sentence and suggest a study question instead.
+For "general" and "image" you may use your general knowledge; for "answer", "goto_slide" and "show_questions" stay with the material given.
 Fields that do not apply to the chosen action: slide null, cited_slides [], question_ids [].`;
 
 const QUIZ_RULES = `${RULES_COMMON}
@@ -33,6 +39,7 @@ const QUIZ_RULES = `${RULES_COMMON}
 Build a classroom quiz of the requested length for this chapter.
 - Choose from QUESTION BANK only questions that test what this chapter's SLIDES teach. Never use a question about a topic this chapter does not cover.
 - Match the class in the CHAPTER line. For a Class 12 chapter, every question must test Grade 12 content of this chapter (the Grade 12 syllabus): never Grade 11 topics, even ones related to the chapter. For a Class 11 chapter, test Grade 11 content only.
+- Mix question types, all on this chapter only: about half numericals, and the rest logical and critical-thinking questions such as assertion and reason, "which of these statements are correct", predict what happens if a quantity changes, cause and effect, interpreting a graph or table described in words, limiting or special cases, spotting the error in a claim, and comparing two situations. Each must need reasoning with this chapter's ideas, not recall of a single fact, and be rated 4 or 5. Assertion and reason items use the standard four options (both true and the reason explains the assertion; both true but the reason does not explain it; assertion true, reason false; assertion false, reason true). Statement items list two to four numbered statements and ask which are correct. In assertion and reason and statement items, every statement must be clearly true or clearly false by a standard textbook law of this chapter (check each against its governing equation, e.g. L di/dt equals the voltage across the inductor); never use borderline or partly true statements, and only say a reason "explains" an assertion when it is the direct textbook cause. Set qtype for every item. For subjects without numericals (for example Biology or English), make them all reasoning-based.
 - Prefer the toughest ones: multi-step numericals, conceptual traps, questions that combine ideas. Order the quiz hardest first.
 - Rate every item's difficulty honestly from 1 (direct recall) to 5 (the hardest items in a real IOE or IOM paper). Write practice questions at difficulty 4 or 5: two or more steps, a combination of ideas, a common misconception as a distractor, or a numerical with a twist. Avoid single-fact recall unless the slides offer nothing harder.
 - Never include two questions that test the same fact or are rewordings of each other; each question must test something different.
@@ -47,7 +54,7 @@ const ASK_SCHEMA = {
   type: 'object',
   required: ['action', 'answer', 'slide', 'cited_slides', 'question_ids'],
   properties: {
-    action: { type: 'string', enum: ['answer', 'goto_slide', 'show_questions', 'not_in_material'] },
+    action: { type: 'string', enum: ['answer', 'general', 'image', 'goto_slide', 'show_questions', 'not_in_material'] },
     answer: { type: 'string' },
     slide: { type: ['integer', 'null'] },
     cited_slides: { type: 'array', items: { type: 'integer' } },
@@ -63,7 +70,7 @@ const QUIZ_SCHEMA = {
       type: 'array',
       items: {
         type: 'object',
-        required: ['question_id', 'question', 'options', 'answer', 'explanation', 'slide', 'style', 'unit', 'difficulty', 'grade'],
+        required: ['question_id', 'question', 'options', 'answer', 'explanation', 'slide', 'style', 'unit', 'difficulty', 'grade', 'qtype'],
         properties: {
           question_id: { type: ['integer', 'null'] },
           question: { type: ['string', 'null'] },
@@ -74,6 +81,7 @@ const QUIZ_SCHEMA = {
           style: { type: ['string', 'null'], enum: ['IOE', 'IOM', null] },
           difficulty: { type: 'integer', enum: [1, 2, 3, 4, 5] },
           unit: { type: ['string', 'null'] },
+          qtype: { type: 'string', enum: ['numerical', 'assertion_reason', 'statements', 'predict', 'cause_effect', 'graph', 'compare', 'error_spotting', 'concept'], description: 'The kind of question.' },
           grade: { type: 'string', enum: ['11', '12'], description: 'The NEB grade (11 or 12) whose syllabus this question tests.' },
         },
       },
@@ -178,7 +186,7 @@ async function gemini(env, req) {
   throw new Busy(tried.join(' | ') || 'no gemini model');
 }
 
-async function geminiModel(env, model, { system, user, schema, maxTokens }, limit) {
+async function geminiModel(env, model, { system, user, schema, maxTokens, image }, limit) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), limit);
   let res;
@@ -190,7 +198,7 @@ async function geminiModel(env, model, { system, user, schema, maxTokens }, limi
       headers: { 'content-type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY },
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: system }] },
-        contents: [{ role: 'user', parts: [{ text: user }] }],
+        contents: [{ role: 'user', parts: image ? [{ inline_data: { mime_type: image.mime, data: image.data } }, { text: user }] : [{ text: user }] }],
         generationConfig: { responseMimeType: 'application/json', responseJsonSchema: schema, maxOutputTokens: maxTokens, temperature: 0.2 },
       }),
     });
@@ -243,7 +251,7 @@ function shorten(context, maxChars) {
 }
 
 /** Gemini first; on rate limits, slowness or outages fall back to Workers AI — all within one deadline. */
-async function callModel(env, { kind, rules, context, exams, userText, schema, maxTokens, geminiOnly = false }) {
+async function callModel(env, { kind, rules, context, exams, userText, schema, maxTokens, geminiOnly = false, image = null }) {
   const syl = syllabusBlock(context.subject, exams);
   const req = {
     kind,
@@ -254,8 +262,10 @@ async function callModel(env, { kind, rules, context, exams, userText, schema, m
     user: userText,
     schema,
     maxTokens,
+    image,
   };
-  const order = [env.GEMINI_API_KEY && gemini, !geminiOnly && env.AI && workersAi].filter(Boolean);
+  // Pictures need a vision model: Gemini reads them; the text-only backup is skipped.
+  const order = [env.GEMINI_API_KEY && gemini, !geminiOnly && !image && env.AI && workersAi].filter(Boolean);
   if (!order.length) throw new AIError('The AI server has no AI model set up.', 500);
   const skipped = [];
   for (const fn of order) {
@@ -273,15 +283,23 @@ async function callModel(env, { kind, rules, context, exams, userText, schema, m
   throw new AIError('The free AI models are busy right now. Try again in a minute.', 429);
 }
 
-export function ask(env, { context, query, pastList, exams }) {
+// With a picture the only action is "image": read the picture and answer about it.
+const IMAGE_SCHEMA = { ...ASK_SCHEMA, properties: { ...ASK_SCHEMA.properties, action: { type: 'string', enum: ['image'] } } };
+
+export function ask(env, { context, query, pastList, exams, image = null }) {
   return callModel(env, {
     kind: 'ask',
-    rules: ASK_RULES,
+    rules: image ? `${ASK_RULES}\n\nA PICTURE is attached to this request. Use the "image" action: read the picture first, then answer the request about it.` : ASK_RULES,
     context,
     exams,
-    userText: `QUESTION BANK\n${pastList || '(none available for this chapter yet)'}\n\nCurrent slide on the board: ${context.currentSlide || 1}\n\nTEACHER'S REQUEST\n${query}`,
-    schema: ASK_SCHEMA,
+    userText: `QUESTION BANK\n${pastList || '(none available for this chapter yet)'}\n\nCurrent slide on the board: ${context.currentSlide || 1}\n\n`
+      + (image
+        ? 'A PICTURE is attached to this request (use the "image" action).\n\n'
+        : 'If this is a study question that the slides do not cover, use the "general" action and answer it; never refuse a study question.\n\n')
+      + `TEACHER'S REQUEST\n${query}`,
+    schema: image ? IMAGE_SCHEMA : ASK_SCHEMA,
     maxTokens: 3000,
+    image,
   });
 }
 
@@ -306,6 +324,7 @@ const CHECK_RULES = `You are checking multiple-choice questions written for +2 S
 For each question, ignore the proposed answer and solve the question yourself, carefully and step by step, checking every calculation.
 - If exactly one option is clearly correct, return its letter and a short worked solution of 2 to 4 lines separated by line breaks (formula, substitution, result), in Unicode notation such as ½MR², μ₀, θ, ×, 10⁻³. Work the arithmetic out digit by digit; the last line states the final value, which must equal the option you return. Never refer to options by letter in the solution.
 - If your computed value is not among the options, return answer null.
+- For assertion and reason or numbered-statement items, judge each statement on its own against the governing law or equation of the chapter before choosing; a statement that restates a correct law is true. If any statement is borderline or the "explains" link is debatable, return answer null.
 - Check the result makes physical sense before accepting it (for example a step-down transformer has more primary turns than secondary turns, so its primary current is smaller than its secondary current; a ratio "1:20" for a step-down transformer means Ns:Np). If the question's data or wording is self-contradictory, return answer null.
 - If no option is correct, more than one could be correct, or the question is vague or depends on wording, return answer null so the question is dropped.
 Reply with JSON only, matching the requested shape, with one entry per question in the same order.`;

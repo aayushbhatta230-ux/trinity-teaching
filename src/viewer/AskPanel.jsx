@@ -1,38 +1,53 @@
 /**
- * Ask AI: search the chapter for formulas, definitions and past MCQs, or jump to a slide.
- * Everything is answered from this presentation's slides and the past-paper bank.
+ * Ask AI: answers from this chapter's slides first, and any other study question from general
+ * knowledge (clearly labelled). Can read a picture: a photo, or the slide on the board.
  */
 import { useEffect, useRef, useState } from 'react';
 import Icon from '../components/Icon.jsx';
 import QuestionCard from './QuestionCard.jsx';
 import RichText from '../components/RichText.jsx';
-import { askAi, chapterContext, findSlide, getAiConfig, isNavigation } from '../lib/ai.js';
+import { askAi, chapterContext, findSlide, getAiConfig, isNavigation, imageFileToDataUrl } from '../lib/ai.js';
 import { useBackHandler } from '../lib/native.js';
 
 const SUGGESTIONS = [
   'Key formulas in this chapter',
   '10 toughest MCQs on this chapter',
   'Explain the current slide simply',
+  'Make 5 reasoning questions on this chapter',
   'Take me to the slide about ',
 ];
 
-export default function AskPanel({ sel, rec, getSlides, page, onGoto, onClose }) {
+export default function AskPanel({ sel, rec, getSlides, getSlideImage, page, onGoto, onClose }) {
   const [query, setQuery] = useState('');
+  const [image, setImage] = useState(null); // JPEG data URL of an attached picture
+  const fileRef = useRef(null);
+  const pickFile = async (e) => {
+    const f = e.target.files?.[0];
+    e.target.value = '';
+    if (!f) return;
+    try { setImage(await imageFileToDataUrl(f)); } catch (err) { setState({ status: 'error', message: err.message }); }
+  };
+  const useSlide = () => {
+    const img = getSlideImage?.();
+    if (img) setImage(img);
+    else setState({ status: 'error', message: 'This slide cannot be sent as a picture (only PDF slides can). Attach a photo instead.' });
+  };
   const [state, setState] = useState({ status: 'idle' });
   const inputRef = useRef(null);
   useBackHandler(true, onClose);
 
   const submit = async (q = query) => {
     q = q.trim();
+    if (!q && image) q = 'Explain what this picture shows and solve any question in it.';
     if (!q || state.status === 'busy') return;
     setState({ status: 'busy', q, mcq: /\b(mcqs?|questions?|quiz|practice)\b/i.test(q) });
     try {
       const slides = await getSlides();
-      if (!slides.some((s) => s.text)) {
+      if (!slides.some((s) => s.text) && !image && isNavigation(q)) {
         throw new Error('This presentation has no readable text (its slides are pictures), so it cannot be searched.');
       }
       // Slide navigation is answered on the board first: instant, and works without internet.
-      if (isNavigation(q)) {
+      if (!image && isNavigation(q)) {
         const n = findSlide(slides, q);
         if (n) { onGoto(n); onClose(); return; }
       }
@@ -41,7 +56,7 @@ export default function AskPanel({ sel, rec, getSlides, page, onGoto, onClose })
           ? 'No slide in this presentation matches that.'
           : 'AI is not set up on this board yet. Slide search still works — try "Take me to the slide about …".');
       }
-      const r = await askAi(chapterContext(sel, rec, slides, page), q);
+      const r = await askAi(chapterContext(sel, rec, slides, page), q, image);
       if (r.action === 'goto_slide' && r.slide) { onGoto(r.slide); onClose(); return; }
       setState({ status: 'done', q, r });
     } catch (e) {
@@ -78,24 +93,33 @@ export default function AskPanel({ sel, rec, getSlides, page, onGoto, onClose })
             className="text-input"
             value={query}
             maxLength={300}
-            placeholder="Ask about this chapter, or “Take me to the slide about …”"
+            placeholder={image ? 'Ask about this picture (or just tap Ask)' : 'Ask anything about this subject, or “Take me to the slide about …”'}
             onChange={(e) => setQuery(e.target.value)}
           />
-          <button className="btn-primary ai-go" disabled={!query.trim() || state.status === 'busy'}>
+          <input ref={fileRef} type="file" accept="image/*" hidden onChange={pickFile} />
+          <button type="button" className="btn-secondary" onClick={() => fileRef.current?.click()} aria-label="Attach a photo"><Icon name="camera" size={36} /></button>
+          <button type="button" className="btn-secondary" onClick={useSlide} aria-label="Use this slide as a picture"><Icon name="image" size={36} /></button>
+          <button className="btn-primary ai-go" disabled={(!query.trim() && !image) || state.status === 'busy'}>
             <Icon name="search" size={40} stroke={2.25} /><span>Ask</span>
           </button>
         </form>
+        {image && (
+          <div className="ai-attach">
+            <div className="ai-thumb"><img src={image} alt="Attached picture" /><button onClick={() => setImage(null)} aria-label="Remove picture"><Icon name="close" size={20} /></button></div>
+            <span className="ai-source">The AI will read this picture with your question.</span>
+          </div>
+        )}
         <div className="ai-body">
           {state.status === 'idle' && (
             <div className="ai-suggest">
-              <p>Answers come only from <b>Chapter {rec.chapter}: {rec.title}</b> and the IOE and IOM entrance syllabus and past papers.</p>
+              <p>Answers come from <b>Chapter {rec.chapter}: {rec.title}</b> first. Other study questions are answered too, and marked as not from the slides. Tap the camera to attach a photo, or the picture button to ask about this slide.</p>
               <div className="ai-chips">
                 {SUGGESTIONS.map((s) => <button key={s} className="btn-secondary" onClick={() => pickSuggestion(s)}>{s.trim()}{s.endsWith(' ') ? '…' : ''}</button>)}
               </div>
             </div>
           )}
           {state.status === 'busy' && (
-            <div className="ai-wait"><span className="spinner" /> {state.mcq ? 'Building exam-style questions…' : 'Reading the slides…'} <span className="ai-waited">{waited}s</span></div>
+            <div className="ai-wait"><span className="spinner" /> {state.mcq ? 'Building exam-style questions…' : image ? 'Reading the picture…' : 'Reading the slides…'} <span className="ai-waited">{waited}s</span></div>
           )}
           {state.status === 'error' && (
             <div className="dialog-error ai-error" role="alert">
@@ -107,7 +131,9 @@ export default function AskPanel({ sel, rec, getSlides, page, onGoto, onClose })
             <div className="ai-result">
               <div className="ai-q">“{state.q}”</div>
               {r.demo && <div className="ai-demo">Demo mode — the AI is not connected yet</div>}
-              {r.answer && <RichText className={`ai-answer ${r.action === 'not_in_material' ? 'is-missing' : ''}`} text={r.answer} />}
+              {r.action === 'general' && <div className="ai-source">Not from this chapter’s slides: a general answer</div>}
+              {r.action === 'image' && <div className="ai-source">Answer from the picture</div>}
+              {r.answer && <RichText className={`ai-answer ${r.action === 'not_in_material' ? 'is-missing' : ''} ${r.action === 'general' ? 'is-general' : ''}`} text={r.answer} />}
               {r.citedSlides?.length > 0 && (
                 <div className="ai-cites">
                   <span>From slide{r.citedSlides.length > 1 ? 's' : ''}:</span>
