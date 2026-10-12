@@ -9,7 +9,8 @@
     "apk": "powershell -ExecutionPolicy Bypass -File scripts/build-apk.ps1",
     "share": "node scripts/share-apk.mjs",
     "windows": "powershell -ExecutionPolicy Bypass -File scripts/build-windows.ps1",
-    "publish-update": "powershell -ExecutionPolicy Bypass -File scripts/publish-update.ps1"
+    "publish-update": "powershell -ExecutionPolicy Bypass -File scripts/publish-update.ps1",
+    "test": "node --test tests/slide-search.test.mjs && node server/scripts/arith-test.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.6.9",
