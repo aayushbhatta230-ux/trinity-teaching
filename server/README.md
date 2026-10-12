@@ -27,6 +27,12 @@ With every request the AI gets the open chapter's slides, the syllabus of the ex
 
 If a syllabus is revised, update `src/syllabus.js` and run `npm run deploy`.
 
+**Ask beyond the slides.** `/ask` answers from the slides first. A study question the slides do not cover is answered from general knowledge with `action: "general"`, which the app labels as not from the slides. Requests that are not about studying get `not_in_material`.
+
+**Pictures.** `/ask` also takes `image`, a JPEG, PNG or WebP data URL up to about 3 MB (the app sends a photo or the current PDF slide, scaled to 1280 px). Pictures go to Gemini, which reads text, equations and diagrams; the reply has `action: "image"`. The text-only backup model is skipped for pictures.
+
+**Quiz mix.** About half of every quiz is logical and critical-thinking questions: alternate batches are asked for assertion and reason, statements, predict, cause and effect, graph, compare and spot-the-error items only. Each item carries a `qtype`, shown on its card.
+
 ## One-time setup
 
 You need a free Cloudflare account. For better answers, also get a free Gemini key at
@@ -74,7 +80,7 @@ The import:
 - strips filler wording ("Choose the correct option: …") and merges duplicates;
 - drops Mental Agility items and items without four distinct options;
 - maps MECEE-BL to IOM;
-- tags questions from the Grade 11 set as grade 11 (used for Class 11 and 12), and the rest as grade 12 (Class 12 only).
+- tags questions from the Grade 11 set as grade 11 and the rest as grade 12. Class 11 gets Grade 11 questions only. Class 12 gets Grade 12 questions first; a Grade 11 question is used only when it strictly matches the chapter, and never for more than a quarter of the picks. AI practice questions carry a grade too, and wrong-grade ones are dropped (`node scripts/grade-test.mjs bank.json` shows the mix).
 
 Running it again replaces the previous import.
 
