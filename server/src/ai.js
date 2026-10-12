@@ -32,12 +32,13 @@ const QUIZ_RULES = `${RULES_COMMON}
 
 Build a classroom quiz of the requested length for this chapter.
 - Choose from QUESTION BANK only questions that test what this chapter's SLIDES teach. Never use a question about a topic this chapter does not cover.
+- Match the class in the CHAPTER line. For a Class 12 chapter, every question must test Grade 12 content of this chapter (the Grade 12 syllabus): never Grade 11 topics, even ones related to the chapter. For a Class 11 chapter, test Grade 11 content only.
 - Prefer the toughest ones: multi-step numericals, conceptual traps, questions that combine ideas. Order the quiz hardest first.
 - Rate every item's difficulty honestly from 1 (direct recall) to 5 (the hardest items in a real IOE or IOM paper). Write practice questions at difficulty 4 or 5: two or more steps, a combination of ideas, a common misconception as a distractor, or a numerical with a twist. Avoid single-fact recall unless the slides offer nothing harder.
 - Never include two questions that test the same fact or are rewordings of each other; each question must test something different.
 - Use past questions exactly as given: set question_id and leave question and options null. Never change their wording, options or answer.
 - If a past question has no answer in the key, solve it carefully step by step and give your answer; the app labels it "answer worked out by AI".
-- Only if there are not enough suitable past questions, add practice questions you write yourself. Each must test a topic that is both in the SLIDES and in a unit of the ENTRANCE EXAM SYLLABUS for the chosen exams, written in that exam's question style at the hardest level its paper uses (IOE: multi-step numericals; IOM: application-level items with close distractors). Model them on the question types that recur in real IOE and IOM papers, from your general knowledge of those exams: typical traps, numbers that come out cleanly, assertion-style and "which of the following" items for IOM, multi-step numericals and graph or limiting-case questions for IOE. Write every practice question fresh; never present one as a specific past paper's question. Spread them over the chosen exams and favour units with more questions. Before writing each item, solve it yourself and check every calculation. Exactly one option must be correct beyond doubt and the other three clearly wrong; avoid vague or hedged wording (such as "ideal", "primarily", "mostly"), trick questions about wording, and options that are partly true. Drop any item you are not certain of. For those set question_id null, fill question, four options and answer, and set style to the exam and unit to the syllabus unit. Never present a practice question as a past question.
+- Only if there are not enough suitable past questions, add practice questions you write yourself. Each must test a topic that is both in the SLIDES and in a unit of the ENTRANCE EXAM SYLLABUS for the chosen exams, written in that exam's question style at the hardest level its paper uses (IOE: multi-step numericals; IOM: application-level items with close distractors). Model them on the question types that recur in real IOE and IOM papers, from your general knowledge of those exams: typical traps, numbers that come out cleanly, assertion-style and "which of the following" items for IOM, multi-step numericals and graph or limiting-case questions for IOE. Write every practice question fresh; never present one as a specific past paper's question. Every practice question must be about what THIS chapter's slides teach, never another chapter or a different grade's topic, even within the same unit. Spread them over the chosen exams. Before writing each item, solve it yourself and check every calculation. Exactly one option must be correct beyond doubt and the other three clearly wrong; avoid vague or hedged wording (such as "ideal", "primarily", "mostly"), trick questions about wording, and options that are partly true. Drop any item you are not certain of. For those set question_id null, fill question, four options and answer, and set style to the exam and unit to the syllabus unit. Never present a practice question as a past question.
 - For every item give the explanation as a short worked solution: 2 to 4 lines separated by line breaks, each line one step (the formula used, the substitution, the result) or one short reason. Write numbers in the substitution line and make the last line state the final value with its unit, exactly matching the correct option. Never refer to options by letter (the app reorders them). No line starts with a bullet character; the app adds bullets. Give the related slide number if there is one.
 - Options are the full answer texts, never the letters. Example of one practice item:
   {"question_id": null, "question": "A 0.5 m rod moves at 4 m/s at right angles to a 0.2 T field. The emf across its ends is", "options": ["0.1 V", "0.4 V", "0.8 V", "4 V"], "answer": "B", "explanation": "Motional emf: e = Blv\\ne = 0.2 × 0.5 × 4\\ne = 0.4 V", "slide": 2, "style": "IOE", "unit": "Electricity and magnetism"}`;
@@ -62,7 +63,7 @@ const QUIZ_SCHEMA = {
       type: 'array',
       items: {
         type: 'object',
-        required: ['question_id', 'question', 'options', 'answer', 'explanation', 'slide', 'style', 'unit', 'difficulty'],
+        required: ['question_id', 'question', 'options', 'answer', 'explanation', 'slide', 'style', 'unit', 'difficulty', 'grade'],
         properties: {
           question_id: { type: ['integer', 'null'] },
           question: { type: ['string', 'null'] },
@@ -73,6 +74,7 @@ const QUIZ_SCHEMA = {
           style: { type: ['string', 'null'], enum: ['IOE', 'IOM', null] },
           difficulty: { type: 'integer', enum: [1, 2, 3, 4, 5] },
           unit: { type: ['string', 'null'] },
+          grade: { type: 'string', enum: ['11', '12'], description: 'The NEB grade (11 or 12) whose syllabus this question tests.' },
         },
       },
     },

@@ -101,7 +101,7 @@ const GENERIC = new Set(('human body system process type form mainly primarily d
  *     topic's key terms in its slides).
  * Questions from other chapters of the same subject never show.
  */
-export function matchesChapter(q, words, titleWords = new Set()) {
+export function matchesChapter(q, words, titleWords = new Set(), strict = false) {
   const list = [...words];
   const has = (k, pool = list) => pool.some((w) => w.startsWith(k.split(' ')[0]));
   const topicName = terms(q.topic || '');
@@ -114,6 +114,7 @@ export function matchesChapter(q, words, titleWords = new Set()) {
   const right = options['ABCD'.indexOf(q.answer)] || '';
   const own = new Set(terms(`${q.question} ${right}`).filter((w) => !GENERIC.has(w)));
   const overlap = [...own].filter((w) => words.has(w)).length;
+  if (strict) return overlap >= 2 && topicStrong; // both the wording and the topic must be this chapter's
   return overlap >= 2 || (overlap >= 1 && topicStrong);
 }
 
@@ -142,12 +143,17 @@ export async function shortlist(db, { subject, exams, cls, context, weights, lim
   }
   const words = chapterWords(context);
   const titleWords = new Set(terms(context.title || ''));
-  return results
+  const ranked = results
     .filter((q) => matchesChapter(q, words, titleWords))
     .map((q) => ({ q, s: score(q, weights) + (q.difficulty || 3) * 0.5 }))
-    .sort((a, b) => b.s - a.s)
-    .slice(0, limit)
-    .map((x) => x.q);
+    .sort((a, b) => b.s - a.s);
+  if (String(cls) !== '12') return ranked.slice(0, limit).map((x) => x.q);
+  // Class 12: a Grade 12 chapter is tested with Grade 12 questions. Grade 11 questions only come in
+  // when they are clearly about this chapter (strict match), and never more than a quarter of the picks.
+  const g12 = ranked.filter((x) => String(x.q.grade) === '12');
+  const g11 = ranked.filter((x) => String(x.q.grade) !== '12' && matchesChapter(x.q, words, titleWords, true));
+  const room = Math.max(0, Math.min(g11.length, Math.floor(limit / 4), limit - g12.length));
+  return [...g12.slice(0, limit), ...g11.slice(0, room)].slice(0, limit).map((x) => x.q);
 }
 
 /** Shape a stored question for the app: a real past question, or a question-bank item. */

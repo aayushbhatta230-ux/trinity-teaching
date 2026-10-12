@@ -284,8 +284,10 @@ async function practiceQuestions(env, { context, exams, need, avoid }) {
       const r = await ai.quiz(env, { context: ctx, count: n + 3, exams, pastList: '', avoid: avoidText, focus });
       const fresh = list(r.items)
         .filter((it) => it && typeof it === 'object' && it.question_id == null && it.question && goodOptions(it.options) && /^[ABCD]$/.test(it.answer))
+        // Right grade only: a Class 12 chapter gets Grade 12 questions, a Class 11 chapter Grade 11.
+        .filter((it) => !['11', '12'].includes(String(context.cls)) || it.grade == null || String(it.grade) === String(context.cls))
         .map((it) => ({
-          kind: 'practice', style: exams.includes(it.style) ? it.style : null, unit: it.unit || null,
+          kind: 'practice', style: exams.includes(it.style) ? it.style : null, unit: it.unit || null, grade: it.grade || null,
           question: it.question, options: it.options, answer: it.answer, answerSource: 'practice',
           explanation: steps(it.explanation), slide: it.slide, difficulty: Math.min(5, Math.max(1, Number(it.difficulty) || 3)),
         }));
