@@ -7,7 +7,7 @@ It is built for the Hikvision interactive teaching boards and also runs on Andro
 
 ## The Android app
 
-- **Full screen:** immersive mode, with the system bars hidden (swipe from the edge to show them). The screen stays on while the app is open.
+- **Board tools stay available:** the status bar is hidden, but the board's own tools (for example the Hikvision annotation pen and side toolbar) keep working while the app is open. **Full Screen** in the viewer hides every system bar; **Board pen** brings the board's tools back. The screen stays on while the app is open.
 - **Fully offline:** the app, fonts, logo and PDF renderer are all inside the APK.
 - **Back button:** the Android Back button closes an open dialog first, then steps back through the flow, and exits from Home.
 - **App ID:** `np.edu.trinity.teaching`
@@ -140,25 +140,30 @@ Each classroom (section code: MA1, DB1, DI2 …) has its **own separate storage*
 
 ### Viewer
 
-The viewer is read-only on purpose. It has no editing, pen, annotation or highlighting tools.
+The viewer never edits the uploaded file.
 
-- Uploaded PDFs are rendered with Mozilla pdf.js, which is bundled into the app.
+- Chapters can be PDF (rendered with Mozilla pdf.js, bundled into the app), PowerPoint (.pptx) or text (.txt).
 - Previous and Next buttons, a slide grid, and thumbnails
 - Swipe to change slide, double-tap to zoom
 - Zoom from Fit up to 300%
 - **Full Screen** hides the header and thumbnails.
 - Keyboard and presentation clickers: ← → PgUp PgDn, + −, F
+- **Pen:** draw over a slide in four colours, highlight, erase, undo or clear. Ink is kept per slide while the chapter is open and is never saved into the file.
 
 ## Ask AI and AI Quiz
 
 In the viewer, **Ask AI** answers questions about the open chapter: formulas, definitions,
-explanations and past MCQs. It answers only from the teacher's slides and the IOE and IOM entrance
-syllabus and past questions, and shows which slides it used. "Take me to the slide about Lenz's law"
+explanations and MCQs, from the teacher's slides and the IOE and IOM entrance syllabus, and shows which
+slides it used. Other study questions are answered too and marked as a general answer, not from the
+slides. The camera button attaches a photo (a question from a book, a diagram) and the picture button
+sends the current PDF slide: the AI reads the picture and explains or solves it. "Take me to the slide about Lenz's law"
 opens that slide; the board does this by itself, even without internet.
 
-**Quiz** builds a classroom quiz from the toughest real past questions that match the chapter.
-Each question shows its source (e.g. "IOE 2079 · Q23") and whether its answer comes from the official key
-or was worked out by AI. AI practice questions only fill gaps and are labelled.
+**Quiz** builds a classroom quiz of 5 to 50 questions, hardest first: matching questions from the IOE and
+IOM question bank (252 questions, Grade 11 or 12 to match the class), then AI practice questions on the
+open chapter. About half are logical and critical-thinking questions (assertion and reason, statements,
+predict, cause and effect, graph, compare, spot the error). Every AI-written answer is re-solved
+independently and its arithmetic recomputed before it is shown. Each question shows its source and type.
 
 The slide text is read when a PDF is uploaded. Older uploads are read the first time AI is used. Scanned
 slides that are only pictures cannot be searched.
