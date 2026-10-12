@@ -1,0 +1,36 @@
+# Checks every push and pull request: the tests pass and the app still builds.
+# Builds without the AI secrets (the app then simply has no built-in AI server).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+
+      - name: Test
+        run: npm test
+
+      - name: Server syntax check
+        run: for f in server/src/*.js; do node --check "$f"; done
+
+      - name: Build the app
+        run: npx vite build
