@@ -4,6 +4,8 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('trinityDesktop', {
   quit: () => ipcRenderer.send('trinity:quit'),
   toggleFullScreen: () => ipcRenderer.send('trinity:toggle-fullscreen'),
+  // Opens an uploaded PowerPoint file, unchanged, in PowerPoint (or the default app).
+  openPresentation: (name, data) => ipcRenderer.invoke('trinity:open-presentation', name, data),
   // Tells the updater the loaded version started correctly.
   appReady: () => ipcRenderer.send('trinity:app-ready'),
   updates: {

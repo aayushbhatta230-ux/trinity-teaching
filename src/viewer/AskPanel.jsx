@@ -17,6 +17,19 @@ const SUGGESTIONS = [
   'Take me to the slide about ',
 ];
 
+/** A reply in the shape the panel expects, whatever the AI sent. */
+function tidy(r) {
+  const nums = (v) => (Array.isArray(v) ? v : []).map(Number).filter((n) => Number.isInteger(n) && n > 0);
+  return {
+    ...r,
+    answer: r?.answer == null ? '' : String(r.answer),
+    slide: Number.isInteger(Number(r?.slide)) && Number(r?.slide) > 0 ? Number(r.slide) : null,
+    citedSlides: nums(r?.citedSlides),
+    questions: (Array.isArray(r?.questions) ? r.questions : [])
+      .filter((q) => q && typeof q === 'object' && q.question && Array.isArray(q.options) && q.options.length >= 2),
+  };
+}
+
 export default function AskPanel({ sel, rec, getSlides, getSlideImage, page, onGoto, onClose }) {
   const [query, setQuery] = useState('');
   const [image, setImage] = useState(null); // JPEG data URL of an attached picture
@@ -49,7 +62,7 @@ export default function AskPanel({ sel, rec, getSlides, getSlideImage, page, onG
       // Slide navigation is answered on the board first: instant, and works without internet.
       if (!image && isNavigation(q)) {
         const n = findSlide(slides, q);
-        if (n) { onGoto(n); onClose(); return; }
+        if (n) { setState({ status: 'done', q, r: { action: 'goto_slide', slide: n, answer: `Slide ${n} matches that.` } }); return; }
       }
       if (!getAiConfig()) {
         throw new Error(isNavigation(q)
@@ -57,8 +70,7 @@ export default function AskPanel({ sel, rec, getSlides, getSlideImage, page, onG
           : 'AI is not set up on this board yet. Slide search still works — try "Take me to the slide about …".');
       }
       const r = await askAi(chapterContext(sel, rec, slides, page), q, image);
-      if (r.action === 'goto_slide' && r.slide) { onGoto(r.slide); onClose(); return; }
-      setState({ status: 'done', q, r });
+      setState({ status: 'done', q, r: tidy(r) });
     } catch (e) {
       setState({ status: 'error', q, message: e.message || 'Something went wrong.' });
     }
@@ -81,8 +93,8 @@ export default function AskPanel({ sel, rec, getSlides, getSlideImage, page, onG
 
   const r = state.r;
   return (
-    <div className="overlay ai-overlay" onClick={onClose}>
-      <div className="ai-panel" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="ask-title">
+    <div className="overlay ai-overlay">
+      <div className="ai-panel" role="dialog" aria-modal="true" aria-labelledby="ask-title">
         <div className="overlay-head">
           <h2 id="ask-title"><Icon name="sparkles" size={40} /> Ask AI</h2>
           <button className="btn-icon" onClick={onClose} aria-label="Close"><Icon name="close" size={48} /></button>
@@ -98,7 +110,7 @@ export default function AskPanel({ sel, rec, getSlides, getSlideImage, page, onG
           />
           <input ref={fileRef} type="file" accept="image/*" hidden onChange={pickFile} />
           <button type="button" className="btn-secondary" onClick={() => fileRef.current?.click()} aria-label="Attach a photo"><Icon name="camera" size={36} /></button>
-          <button type="button" className="btn-secondary" onClick={useSlide} aria-label="Use this slide as a picture"><Icon name="image" size={36} /></button>
+          {getSlideImage && <button type="button" className="btn-secondary" onClick={useSlide} aria-label="Use this slide as a picture"><Icon name="image" size={36} /></button>}
           <button className="btn-primary ai-go" disabled={(!query.trim() && !image) || state.status === 'busy'}>
             <Icon name="search" size={40} stroke={2.25} /><span>Ask</span>
           </button>
@@ -112,7 +124,7 @@ export default function AskPanel({ sel, rec, getSlides, getSlideImage, page, onG
         <div className="ai-body">
           {state.status === 'idle' && (
             <div className="ai-suggest">
-              <p>Answers come from <b>Chapter {rec.chapter}: {rec.title}</b> first. Other study questions are answered too, and marked as not from the slides. Tap the camera to attach a photo, or the picture button to ask about this slide.</p>
+              <p>Answers come from <b>Chapter {rec.chapter}: {rec.title}</b> first. Other study questions are answered too, and marked as not from the slides. Tap the camera to attach a photo{getSlideImage ? ', or the picture button to ask about this slide' : ''}.</p>
               <div className="ai-chips">
                 {SUGGESTIONS.map((s) => <button key={s} className="btn-secondary" onClick={() => pickSuggestion(s)}>{s.trim()}{s.endsWith(' ') ? '…' : ''}</button>)}
               </div>
@@ -134,16 +146,21 @@ export default function AskPanel({ sel, rec, getSlides, getSlideImage, page, onG
               {r.action === 'general' && <div className="ai-source">Not from this chapter’s slides: a general answer</div>}
               {r.action === 'image' && <div className="ai-source">Answer from the picture</div>}
               {r.answer && <RichText className={`ai-answer ${r.action === 'not_in_material' ? 'is-missing' : ''} ${r.action === 'general' ? 'is-general' : ''}`} text={r.answer} />}
-              {r.citedSlides?.length > 0 && (
+              {r.action === 'goto_slide' && r.slide && (
+                onGoto
+                  ? <button className="btn-primary ai-goto" onClick={() => { onGoto(r.slide); onClose(); }}><Icon name="next" size={40} stroke={2.25} /><span>Go to slide {r.slide}</span></button>
+                  : <div className="ai-source">It is slide {r.slide} of the presentation.</div>
+              )}
+              {r.citedSlides.length > 0 && (
                 <div className="ai-cites">
                   <span>From slide{r.citedSlides.length > 1 ? 's' : ''}:</span>
-                  {r.citedSlides.map((n) => (
-                    <button key={n} className="ai-cite" onClick={() => { onGoto(n); onClose(); }}>{n}</button>
-                  ))}
+                  {r.citedSlides.map((n) => (onGoto
+                    ? <button key={n} className="ai-cite" onClick={() => { onGoto(n); onClose(); }}>{n}</button>
+                    : <span key={n} className="ai-cite">{n}</span>))}
                 </div>
               )}
-              {r.questions?.map((q, i) => (
-                <QuestionCard key={q.id} q={q} number={i + 1} onSlide={(n) => { onGoto(n); onClose(); }} />
+              {r.questions.map((q, i) => (
+                <QuestionCard key={q.id ?? i} q={q} number={i + 1} onSlide={onGoto ? (n) => { onGoto(n); onClose(); } : undefined} />
               ))}
             </div>
           )}

@@ -119,7 +119,7 @@ export default function QuizOverlay({ sel, rec, getSlides, page, onGoto, onClose
               number={index + 1}
               big
               onAnswer={(ok) => setScore((s) => ({ right: s.right + (ok ? 1 : 0), done: s.done + 1 }))}
-              onSlide={(n) => { onGoto(n); onClose(); }}
+              onSlide={onGoto ? (n) => { onGoto(n); onClose(); } : undefined}
             />
             <div className="quiz-nav">
               <button className="btn-secondary" onClick={() => setIndex((i) => i - 1)} disabled={index === 0}>

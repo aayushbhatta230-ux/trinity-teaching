@@ -805,3 +805,46 @@ h1, h2, h3, p { margin: 0; }
 .ai-thumb button { position: absolute; top: 0.2rem; right: 0.2rem; background: rgba(0, 0, 0, 0.6); color: #fff; border-radius: 50%; width: 2.2rem; height: 2.2rem; display: grid; place-items: center; }
 .ai-answer.is-general { border-left: 0.4rem dashed var(--gold); }
 .ai-source { font-size: 1.25rem; font-weight: 600; color: var(--muted); margin-bottom: 0.6rem; }
+
+/* ---------- PowerPoint chapter (presented in PowerPoint itself) ---------- */
+.viewer-launch { background: var(--bg); }
+.launch-body {
+  flex: 1; min-height: 0; overflow-y: auto;
+  display: flex; align-items: center; justify-content: center; gap: 3rem;
+  padding: 2.5rem 3rem;
+}
+.launch-preview {
+  position: relative; flex: 0 1 44rem; max-width: 44rem; max-height: 100%; min-height: 14rem;
+  display: grid; place-items: center; overflow: hidden;
+  background: #fff; border-radius: 1.25rem; border: 0.125rem solid var(--line); box-shadow: var(--shadow-lg);
+}
+.launch-preview img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.launch-placeholder { display: flex; flex-direction: column; align-items: center; gap: 1rem; color: var(--brand); font-size: 2rem; font-weight: 600; padding: 3rem; }
+.launch-side { flex: 0 1 34rem; display: flex; flex-direction: column; gap: 1.4rem; min-width: 0; }
+.launch-file {
+  display: flex; align-items: center; gap: 1rem; padding: 1rem 1.25rem;
+  background: var(--surface); border: 0.125rem solid var(--line); border-radius: 1rem; color: var(--brand);
+}
+.launch-file div { display: flex; flex-direction: column; min-width: 0; }
+.launch-file b { font-size: 1.45rem; color: var(--ink); overflow-wrap: anywhere; }
+.launch-file span { font-size: 1.15rem; color: var(--muted); }
+.launch-go { align-self: stretch; justify-content: center; min-height: 7.5rem; padding: 0 2rem; gap: 1.2rem; font-size: 2.4rem; letter-spacing: 0.02em; white-space: nowrap; }
+.launch-go svg { flex: none; }
+.launch-preview-label { position: absolute; left: 1rem; bottom: 1rem; font-size: 1.1rem; font-weight: 600; color: var(--muted); background: rgba(255, 255, 255, 0.92); padding: 0.3rem 0.8rem; border-radius: 1rem; }
+.launch-go:disabled { opacity: 0.55; }
+.launch-progress { height: 0.6rem; border-radius: 0.3rem; background: var(--bg-2); overflow: hidden; }
+.launch-progress span { display: block; height: 100%; background: var(--gold); transition: width 0.2s; }
+.launch-note { font-size: 1.35rem; color: var(--ink-2); line-height: 1.45; }
+.launch-help { font-size: 1.2rem; color: var(--muted); line-height: 1.45; }
+.launch-ai { display: flex; gap: 0.8rem; flex-wrap: wrap; }
+.launch-ai .ctl { flex: 1; }
+
+@media (max-width: 1100px), (orientation: portrait) {
+  .launch-body { flex-direction: column; align-items: stretch; padding: 1.5rem; gap: 1.5rem; }
+  .launch-preview { max-width: none; flex: none; }
+  .launch-side { flex: none; }
+}
+
+/* Ask AI: "Go to slide N" after a slide answer (the panel never closes by itself). */
+.ai-goto { align-self: flex-start; margin-top: 0.8rem; min-height: 5rem; font-size: 1.6rem; padding: 0 1.8rem; }
+span.ai-cite { cursor: default; display: inline-grid; place-items: center; }

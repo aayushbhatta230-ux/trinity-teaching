@@ -40,7 +40,7 @@ export default function QuestionCard({ q, number, onAnswer, onSlide, big }) {
       </div>
       <RichText className="qcard-question" text={q.question} />
       <div className="qcard-options">
-        {q.options.map((o, i) => {
+        {(Array.isArray(q.options) ? q.options : []).map((o, i) => {
           const isAnswer = shown && LETTERS[i] === q.answer;
           const isWrong = shown && picked === i && !isAnswer;
           return (

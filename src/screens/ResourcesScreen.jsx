@@ -5,7 +5,7 @@ import UploadDialog from '../components/UploadDialog.jsx';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
 import { getSubject, getPortion, hasPortionChoice, resolveTeacher } from '../lib/catalog.js';
 import { usePresentations, deletePresentation } from '../lib/library.js';
-import { formatDate, formatSize } from '../lib/format.js';
+import { formatDate, formatSize, countLabel } from '../lib/format.js';
 import { isNativeApp } from '../lib/native.js';
 
 /** Chapter-wise presentations uploaded by the assigned teacher for this class. */
@@ -72,7 +72,7 @@ export default function ResourcesScreen({ sel, go }) {
               <span className="file-main">
                 <span className="file-title">{p.title}</span>
                 <span className="file-desc">
-                  {p.kind === 'pptx' ? 'PowerPoint · ' : p.kind === 'txt' ? 'Text · ' : ''}{p.pages} {p.kind === 'txt' ? (p.pages === 1 ? 'page' : 'pages') : (p.pages === 1 ? 'slide' : 'slides')} · {formatSize(p.size)}
+                  {[p.kind === 'pptx' ? 'PowerPoint' : p.kind === 'txt' ? 'Text' : '', p.kind === 'pptx' && !p.pages ? '' : countLabel(p.kind, p.pages), formatSize(p.size)].filter(Boolean).join(' · ')}
                   
                 </span>
               </span>

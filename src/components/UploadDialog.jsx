@@ -2,7 +2,7 @@ import { useState } from 'react';
 import Icon from './Icon.jsx';
 import { addPresentation } from '../lib/library.js';
 import { ACCEPT, KINDS, detectKind, openDocument } from '../lib/documents.js';
-import { formatSize, titleFromFileName } from '../lib/format.js';
+import { formatSize, titleFromFileName, countLabel } from '../lib/format.js';
 import { getClass, getPortion, getSubject, hasPortionChoice } from '../lib/catalog.js';
 import { sectionCode } from '../data/structure.js';
 import { useBackHandler } from '../lib/native.js';
@@ -91,12 +91,12 @@ export default function UploadDialog({ sel, teacher, defaultChapter, onClose, on
             {file ? (
               <span className="file-drop-text">
                 <b>{file.name}</b>
-                <span>{KINDS[kind].label} · {pages} {kind === 'txt' ? (pages === 1 ? 'page' : 'pages') : (pages === 1 ? 'slide' : 'slides')} · {formatSize(file.size)} · tap to choose a different file</span>
+                <span>{[KINDS[kind].label, kind === 'pptx' && !pages ? '' : countLabel(kind, pages), formatSize(file.size)].filter(Boolean).join(' · ')} · tap to choose a different file</span>
               </span>
             ) : (
               <span className="file-drop-text">
                 <b>{status.busy ? 'Reading file…' : 'Choose a file'}</b>
-                <span>PDF, PowerPoint (.pptx) or text (.txt), from a USB drive or this board.</span>
+                <span>PowerPoint, PDF or text (.txt), from a USB drive or this board.</span>
               </span>
             )}
           </label>
@@ -125,6 +125,13 @@ export default function UploadDialog({ sel, teacher, defaultChapter, onClose, on
               />
             </label>
           </div>
+
+          {file && kind === 'pptx' && (
+            <div className="room-note">
+              <Icon name="presentation" size={36} />
+              <span>Kept exactly as uploaded. It opens in PowerPoint (or the board’s office app) with all its pictures, animations and transitions.</span>
+            </div>
+          )}
 
           <div className="room-note">
             <Icon name="shield" size={36} />

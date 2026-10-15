@@ -120,10 +120,9 @@ The app shows only **chapter presentations uploaded by teachers**. There is no s
 
 - **Formats:**
   - **PDF.**
-  - **PowerPoint (.pptx):** shown slide by slide on the board, offline, including text, pictures, shapes, tables and charts. Very complex animations or SmartArt may look simpler than in PowerPoint; for an exact copy, save the presentation as PDF.
+  - **PowerPoint (.pptx, .ppsx, .ppt, .pps):** stored exactly as uploaded, byte for byte. The app never converts or re-draws it: **Start presentation** opens the original file in PowerPoint itself (school computers) or the board's office app (for example WPS Office), so every picture, font, animation and transition plays exactly as the teacher made it. See [PowerPoint chapters](#powerpoint-chapters).
   - **Text (.txt):** split into readable pages, with the first line as a title.
-  - Older `.ppt` files must first be saved as `.pptx` in PowerPoint; the app explains this if one is chosen.
-- **AI:** Ask AI and Quiz work with all three formats. They need text in the file, so slides that are only pictures cannot be searched.
+- **AI:** Ask AI and Quiz work with every format. They use the text on the slides, read once at upload without changing the file, so slides that are only pictures cannot be searched. Old binary `.ppt` files carry no readable text; save them as `.pptx` if the AI should read them.
 - **Removing files:** tap **Manage**, then tap a presentation to remove it. The app asks for confirmation first.
 
 ### Every classroom has its own storage
@@ -142,13 +141,23 @@ Each classroom (section code: MA1, DB1, DI2 …) has its **own separate storage*
 
 The viewer never edits the uploaded file.
 
-- Chapters can be PDF (rendered with Mozilla pdf.js, bundled into the app), PowerPoint (.pptx) or text (.txt).
+- PDF chapters are rendered with Mozilla pdf.js, bundled into the app; text chapters are split into pages. PowerPoint chapters are not shown in this viewer: see [PowerPoint chapters](#powerpoint-chapters).
 - Previous and Next buttons, a slide grid, and thumbnails
 - Swipe to change slide, double-tap to zoom
 - Zoom from Fit up to 300%
 - **Full Screen** hides the header and thumbnails.
 - Keyboard and presentation clickers: ← → PgUp PgDn, + −, F
 - **Pen:** draw over a slide in four colours, highlight, erase, undo or clear. Ink is kept per slide while the chapter is open and is never saved into the file.
+
+### PowerPoint chapters
+
+PowerPoint files are presented by PowerPoint, not by this app. The app only stores the original file and hands it, unchanged, to the presentation app on the device.
+
+- **School computers (Windows):** **Start presentation** opens the file straight into the PowerPoint slide show. If PowerPoint is not installed, the computer's default app for PowerPoint files opens it instead.
+- **Boards and phones (Android):** the file opens in the board's office app (WPS Office, Microsoft PowerPoint …). If no such app is installed, the app says so; install one from the board's app store.
+- Use the presentation app's own controls (or a clicker) to move through slides and animations, and press Esc or Back to return to Trinity Teaching. Ask AI and the quiz stay available on the chapter screen.
+- The chapter screen shows the preview picture PowerPoint saves inside the file (slide 1), the slide count and the file name.
+- **Needs app 1.7.0 or later** (Windows setup or Android APK, installed once). Older installed apps receive this update but show a message asking for the new app when **Start presentation** is tapped.
 
 ## Ask AI and AI Quiz
 
@@ -157,7 +166,11 @@ explanations and MCQs, from the teacher's slides and the IOE and IOM entrance sy
 slides it used. Other study questions are answered too and marked as a general answer, not from the
 slides. The camera button attaches a photo (a question from a book, a diagram) and the picture button
 sends the current PDF slide: the AI reads the picture and explains or solves it. "Take me to the slide about Lenz's law"
-opens that slide; the board does this by itself, even without internet.
+finds that slide (on the board itself, even without internet) and shows a **Go to slide** button.
+
+The Ask AI panel stays open until the teacher closes it: it never closes by itself after an answer, and
+tapping outside it does nothing, so an answer cannot disappear by accident. If an answer cannot be shown,
+the panel says so instead of closing.
 
 **Quiz** builds a classroom quiz of 5 to 50 questions, hardest first: matching questions from the IOE and
 IOM question bank (252 questions, Grade 11 or 12 to match the class), then AI practice questions on the

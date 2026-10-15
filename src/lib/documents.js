@@ -1,17 +1,21 @@
 /**
- * Presentations a teacher can upload: PDF, PowerPoint (.pptx) and plain text (.txt).
- * Every kind opens as the same kind of document for the viewer:
+ * Presentations a teacher can upload: PDF, PowerPoint (.pptx, .ppsx, .ppt, .pps) and plain text (.txt).
+ * The uploaded file is stored exactly as it is and never converted.
  *
+ * PDF and text open in the app's own viewer:
  *   { kind, numPages, aspect,
  *     mount(n, element, cssWidth, { clone }) → { promise, cancel },   // show page n
  *     extractSlides() → Promise<[{ n, text }]>,                       // text for Ask AI / Quiz
  *     destroy() }
  *
- * Everything runs on the board, offline. PowerPoint slides are laid out with pptx-preview
- * (loaded only when a .pptx is opened); text files are split into readable pages.
+ * PowerPoint is never re-drawn by the app: it is presented in PowerPoint itself (or the board's
+ * office app) from the original file, so pictures, fonts, animations and transitions are exactly
+ * as the teacher made them. Its document is { kind: 'pptx', external: true, numPages, aspect,
+ * thumbnail, extractSlides, destroy } (see present.js).
  */
 import { openPdf, renderPage, extractSlides as extractPdfSlides, isPdf } from './pdf.js';
 import { prettyMath } from './mathText.js';
+import { readPowerPoint } from './pptx.js';
 
 export const KINDS = {
   pdf: { label: 'PDF' },
@@ -23,6 +27,8 @@ export const KINDS = {
 export const ACCEPT = [
   '.pdf', 'application/pdf',
   '.pptx', 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  '.ppsx', 'application/vnd.openxmlformats-officedocument.presentationml.slideshow',
+  '.ppt', '.pps', 'application/vnd.ms-powerpoint',
   '.txt', 'text/plain',
 ].join(',');
 
@@ -32,11 +38,13 @@ const userError = (message) => Object.assign(new Error(message), { forUser: true
 export async function detectKind(file) {
   const name = (file.name || '').toLowerCase();
   const head = new Uint8Array(await file.slice(0, 4).arrayBuffer());
-  const zip = head[0] === 0x50 && head[1] === 0x4b; // "PK"
+  const zip = head[0] === 0x50 && head[1] === 0x4b; // "PK": .pptx / .ppsx
+  const ole = head[0] === 0xd0 && head[1] === 0xcf && head[2] === 0x11 && head[3] === 0xe0; // .ppt / .pps
   if (await isPdf(file)) return 'pdf';
-  if (name.endsWith('.pptx') && zip) return 'pptx';
-  if (name.endsWith('.ppt') || name.endsWith('.pps') || name.endsWith('.ppsx')) {
-    throw userError('This is an older PowerPoint format. In PowerPoint choose File → Save As → PowerPoint Presentation (.pptx), then upload that file.');
+  if (/\.(pptx|ppsx)$/.test(name) && zip) return 'pptx';
+  if (/\.(ppt|pps)$/.test(name) && ole) return 'pptx';
+  if (/\.(pptx|ppsx|ppt|pps)$/.test(name)) {
+    throw userError('This PowerPoint file looks damaged and could not be read. Open it in PowerPoint, save it again, then upload it.');
   }
   if (name.endsWith('.txt')) {
     if (file.size > 2 * 1024 * 1024) throw userError('This text file is too large (over 2 MB).');
@@ -45,12 +53,12 @@ export async function detectKind(file) {
   if (name.endsWith('.key') || name.endsWith('.odp')) {
     throw userError('Please save this presentation as PowerPoint (.pptx) or PDF, then upload it.');
   }
-  throw userError('Please choose a PDF, PowerPoint (.pptx) or text (.txt) file.');
+  throw userError('Please choose a PowerPoint, PDF or text (.txt) file.');
 }
 
 /** Opens a stored presentation (record with { kind, file }) for viewing. */
 export function openDocument({ kind = 'pdf', file }) {
-  if (kind === 'pptx') return openPptx(file);
+  if (kind === 'pptx') return openPowerPoint(file);
   if (kind === 'txt') return openText(file);
   return openPdfDocument(file);
 }
@@ -130,58 +138,21 @@ function offscreenHost() {
 
 // ---------- PowerPoint ----------
 
-/**
- * Charts without a title get the library's Chinese placeholder ("图表标题" = "Chart title").
- * Charts are drawn by ECharts, so drop that placeholder whenever a chart is configured.
- */
-let chartsPatched = false;
-async function patchChartTitles() {
-  if (chartsPatched) return;
-  chartsPatched = true;
-  const echarts = await import('echarts');
-  const probe = echarts.init(document.createElement('div'), null, { width: 10, height: 10 });
-  const proto = Object.getPrototypeOf(probe);
-  const setOption = proto.setOption;
-  proto.setOption = function patched(option, ...rest) {
-    for (const t of [].concat(option?.title || [])) {
-      if (t && String(t.text || '').trim() === '图表标题') { t.text = ''; t.show = false; }
-    }
-    return setOption.call(this, option, ...rest);
+/** PowerPoint: read-only facts about the file; the slides themselves are shown by PowerPoint. */
+async function openPowerPoint(file) {
+  const info = await readPowerPoint(file).catch(() => null);
+  if (!info) throw userError('This PowerPoint file could not be read. It may be damaged. Open it in PowerPoint, save it again, then upload it.');
+  let thumbUrl = info.thumbnail ? URL.createObjectURL(info.thumbnail) : null;
+  return {
+    kind: 'pptx',
+    external: true,
+    readable: info.readable,
+    numPages: info.numPages,
+    aspect: info.aspect,
+    thumbnail: thumbUrl,
+    extractSlides: async () => info.slides,
+    destroy() { if (thumbUrl) URL.revokeObjectURL(thumbUrl); thumbUrl = null; },
   };
-  probe.dispose();
-}
-
-async function openPptx(file) {
-  const { init } = await import('pptx-preview');
-  await patchChartTitles().catch(() => {});
-  const buf = await file.arrayBuffer();
-  const host = offscreenHost();
-  try {
-    // First read the slide size, then lay the slides out at that shape.
-    const probe = init(document.createElement('div'), { width: BASE_W, height: 540, mode: 'list' });
-    const info = await probe.load(buf.slice(0));
-    const aspect = info?.width && info?.height ? info.width / info.height : 16 / 9;
-    const viewer = init(host, { width: BASE_W, height: Math.round(BASE_W / aspect), mode: 'list' });
-    await viewer.preview(buf);
-    // Charts without a title get the library's Chinese placeholder ("图表标题"); hide it.
-    const pages = [...host.querySelectorAll('.pptx-preview-slide-wrapper')];
-    if (!pages.length) throw userError('This PowerPoint file has no slides that can be shown. Save it as PDF from PowerPoint and upload that instead.');
-    const texts = pages.map((p) => (p.innerText || p.textContent || '')
-      .replace(/■/g, '\n').replace(/[ \t]+/g, ' ').replace(/ ?\n ?/g, '\n').replace(/\n{2,}/g, '\n').trim().slice(0, 4000));
-    for (const p of pages) {
-      p.style.margin = '0';
-      p.style.transformOrigin = '0 0';
-      p.style.position = 'absolute';
-      p.style.left = '0';
-      p.style.top = '0';
-    }
-    const wrapper = host.querySelector('.pptx-preview-wrapper');
-    if (wrapper) { wrapper.style.height = 'auto'; wrapper.style.overflow = 'visible'; }
-    return htmlDocument('pptx', pages, aspect, texts, wrapper || host);
-  } catch (e) {
-    host.remove();
-    throw e.forUser ? e : userError('This PowerPoint file could not be opened. It may be damaged. Save it as PDF from PowerPoint and upload that instead.');
-  }
 }
 
 // ---------- Text ----------

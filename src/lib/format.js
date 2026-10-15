@@ -9,3 +9,10 @@ export const formatSize = (bytes) => {
 /** "Unit_3-Projectile Motion (final).pdf" → "Unit 3 Projectile Motion (final)" */
 export const titleFromFileName = (name) =>
   name.replace(/\.[^.]+$/, '').replace(/[_]+/g, ' ').replace(/\s*-\s*/g, ' – ').replace(/\s+/g, ' ').trim();
+
+/** "12 slides", "3 pages", or just "PowerPoint" when the slide count is unknown (old .ppt files). */
+export function countLabel(kind, pages) {
+  if (!pages) return kind === 'pptx' ? 'PowerPoint' : '';
+  if (kind === 'txt') return `${pages} ${pages === 1 ? 'page' : 'pages'}`;
+  return `${pages} ${pages === 1 ? 'slide' : 'slides'}`;
+}

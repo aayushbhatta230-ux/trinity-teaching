@@ -6,6 +6,7 @@ const path = require('node:path');
 // Test hook: keep app data in a separate folder (never set in normal use).
 if (process.env.TRINITY_USER_DATA) app.setPath('userData', process.env.TRINITY_USER_DATA);
 const { createUpdater } = require('./updater.cjs');
+const { openPresentation } = require('./present.cjs');
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
@@ -58,6 +59,8 @@ if (!app.requestSingleInstanceLock()) {
   ipcMain.handle('trinity:shell-version', () => app.getVersion());
   ipcMain.handle('trinity:check-updates', () => updater.check());
   ipcMain.handle('trinity:apply-update', () => updater.apply());
+  // PowerPoint chapters open in PowerPoint itself, from the original file.
+  ipcMain.handle('trinity:open-presentation', (_e, name, data) => openPresentation(name, data));
 
   app.on('second-instance', () => {
     if (!win) return;

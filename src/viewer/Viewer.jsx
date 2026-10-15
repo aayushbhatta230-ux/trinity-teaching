@@ -1,6 +1,7 @@
 /**
- * Presentation viewer for uploaded chapters (PDF, PowerPoint or text): page navigation, zoom, full screen,
+ * Viewer for uploaded chapters. PDF and text: page navigation, zoom, full screen,
  * and a built-in pen for drawing over slides (kept in memory, never saved into the file).
+ * PowerPoint: presented from the original file in PowerPoint itself (PresentLauncher).
  */
 import { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react';
 import Icon from '../components/Icon.jsx';
@@ -10,6 +11,8 @@ import { getPresentation, saveSlides } from '../lib/library.js';
 import { openDocument } from '../lib/documents.js';
 import AskPanel from './AskPanel.jsx';
 import QuizOverlay from './QuizOverlay.jsx';
+import PresentLauncher from './PresentLauncher.jsx';
+import AiErrorBoundary from '../components/AiErrorBoundary.jsx';
 import { formatDate, formatSize } from '../lib/format.js';
 import { isNativeApp, useBackHandler, setBoardImmersive, hasBoardTools } from '../lib/native.js';
 import { InkLayer, InkTools, PEN_COLOURS } from './InkLayer.jsx';
@@ -79,6 +82,8 @@ export default function Viewer({ sel, id, page, go }) {
   if (state.status === 'loading') return <div className="screen viewer"><div className="viewer-loading">Opening presentation…</div></div>;
   if (state.status === 'missing') return <Unavailable go={go} title="This presentation belongs to another classroom" />;
   if (state.status === 'error') return <Unavailable go={go} title="This presentation could not be opened" message="The file may be damaged. Remove it and upload it again." />;
+  // PowerPoint is never re-drawn here: it is presented from the original file in PowerPoint itself.
+  if (state.doc.external) return <PresentLauncher sel={sel} rec={state.rec} doc={state.doc} go={go} />;
   return <DocViewer {...state} sel={sel} page={page} go={go} />;
 }
 
@@ -350,8 +355,16 @@ function DocViewer({ sel, rec, doc, aspect, page, go }) {
           onClose={() => setPen(false)} boardTools={boardPen} />
       )}
 
-      {ai === 'ask' && <AskPanel sel={sel} rec={rec} getSlides={getSlides} getSlideImage={() => slideImage(pageRef.current)} page={p} onGoto={goto} onClose={() => setAi(null)} />}
-      {ai === 'quiz' && <QuizOverlay sel={sel} rec={rec} getSlides={getSlides} page={p} onGoto={goto} onClose={() => setAi(null)} />}
+      {ai === 'ask' && (
+        <AiErrorBoundary onClose={() => setAi(null)}>
+          <AskPanel sel={sel} rec={rec} getSlides={getSlides} getSlideImage={() => slideImage(pageRef.current)} page={p} onGoto={goto} onClose={() => setAi(null)} />
+        </AiErrorBoundary>
+      )}
+      {ai === 'quiz' && (
+        <AiErrorBoundary onClose={() => setAi(null)}>
+          <QuizOverlay sel={sel} rec={rec} getSlides={getSlides} page={p} onGoto={goto} onClose={() => setAi(null)} />
+        </AiErrorBoundary>
+      )}
 
       {grid && (
         <div className="overlay" onClick={() => setGrid(false)}>

@@ -3,6 +3,13 @@
 Trinity Teaching: chapter presentations for every classroom board, with AI study support.
 Android and Windows apps update themselves through **Check for updates**; an APK is only reinstalled when noted.
 
+## 1.7.0 (15 October 2026)
+**Install the 1.7.0 app once (Windows setup and Android APK) to present PowerPoint files.** Everything else in this update also reaches older apps through Check for updates.
+- PowerPoint chapters are no longer converted or re-drawn by the app. The uploaded file is kept exactly as it is, and **Start presentation** opens it in PowerPoint (school computers, straight into the slide show) or the board's office app such as WPS Office (Android). Pictures, fonts, animations and transitions now play exactly as the teacher made them, with no cut-off text.
+- Older PowerPoint formats (.ppt, .pps) and .ppsx can be uploaded as they are; no need to re-save them as .pptx.
+- Ask AI no longer closes by itself: an answer about a slide stays on screen with a **Go to slide** button, and tapping outside the panel does nothing.
+- An answer that cannot be shown now gives a message inside the panel instead of closing the screen; unexpected AI replies are checked before they are shown.
+
 ## 1.6.0 (12 October 2026)
 **Android: install the 1.6.0 APK once** (needed for the board's own annotation tools).
 - Board annotation stays available: the board's own tools (such as the Hikvision annotation pen and side toolbar) are no longer hidden while the app is open. Full screen still hides every bar; **Board pen** brings the board's tools back.

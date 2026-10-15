@@ -54,7 +54,7 @@ export const hasOpenOverlay = () => handlers.length > 0;
  * screen presentation; `false` keeps the board's own tools, such as its annotation pen, available.
  * Older app shells without the Board plugin, browsers and Windows simply ignore it.
  */
-const Board = isNativeApp ? Capacitor.registerPlugin('Board') : null;
+export const Board = isNativeApp ? Capacitor.registerPlugin('Board') : null;
 export function setBoardImmersive(on) {
   if (!Board) return;
   Board.setImmersive({ on: !!on }).catch(() => {});
