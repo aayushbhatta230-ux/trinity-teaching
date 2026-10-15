@@ -37,8 +37,11 @@ $manifest = [ordered]@{
   notes       = $Notes
   publishedAt = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
 }
+# The latest installers of the app itself: apps from 1.7.0 install them in one click.
+$shell = Get-Content shell-release.json -Raw -Encoding UTF8 | ConvertFrom-Json
+if ($shell.version -and $shell.windows.sha256 -and $shell.android.sha256) { $manifest.shell = $shell }
 # Write without a byte-order mark so every JSON parser accepts it.
-[System.IO.File]::WriteAllText((Join-Path $out 'update.json'), ($manifest | ConvertTo-Json), (New-Object System.Text.UTF8Encoding $false))
+[System.IO.File]::WriteAllText((Join-Path $out 'update.json'), ($manifest | ConvertTo-Json -Depth 5), (New-Object System.Text.UTF8Encoding $false))
 
 # (Listing tags avoids stderr output, which Windows PowerShell 5.1 would turn into an error.)
 $tags = @(gh release list -R $Repo --limit 100 --json tagName --jq '.[].tagName')

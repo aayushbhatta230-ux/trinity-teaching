@@ -1,12 +1,13 @@
 import Logo, { Mark } from '../components/Logo.jsx';
 import Icon from '../components/Icon.jsx';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import AiSetupDialog from '../components/AiSetupDialog.jsx';
 import { Clock, useFitToHeight } from '../components/Chrome.jsx';
 import { Arcs, Ribbon } from '../components/Decor.jsx';
 import { INSTITUTION } from '../data/institution.js';
 import { desktopApp, isNativeApp, exitApp } from '../lib/native.js';
-import { useUpdates, WEB_VERSION } from '../lib/updates.js';
+import { useUpdates, WEB_VERSION, appUpdateInfo, installAppUpdate } from '../lib/updates.js';
+import { useBackHandler } from '../lib/native.js';
 
 // The installed apps (Windows and Android) get an Exit button; a browser tab does not.
 const canExit = !!desktopApp || isNativeApp;
@@ -50,6 +51,51 @@ function UpdateReady() {
   );
 }
 
+/**
+ * "Update app": the installed Windows/Android app itself is older than the latest one.
+ * One click from app 1.7.0 on; older apps are guided to the download once.
+ */
+function AppUpdate() {
+  const u = useUpdates();
+  const [info, setInfo] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState(null);
+  useEffect(() => { appUpdateInfo().then(setInfo).catch(() => {}); }, [u.checkedAt]);
+  useBackHandler(!!note, () => setNote(null));
+  if (!info?.available) return null;
+  const run = async () => {
+    setBusy(true);
+    try {
+      const r = await installAppUpdate();
+      if (r.message) setNote(r);
+    } catch (e) {
+      setNote({ state: 'error', message: `The update could not be installed: ${String(e?.message || e).slice(0, 120)}. Check the internet connection and try again.` });
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <>
+      <button className="btn-update" onClick={run} disabled={busy}>
+        <Icon name="download" size={34} stroke={2} />
+        <span>{busy ? 'Downloading the update…' : `Update app to ${info.version}`}</span>
+      </button>
+      {note && (
+        <div className="overlay" role="dialog" aria-modal="true" aria-labelledby="app-update-title">
+          <div className="dialog dialog-sm">
+            <div className="dialog-body confirm-body">
+              <Icon name={note.state === 'error' ? 'alert' : 'download'} size={72} />
+              <h2 id="app-update-title">{note.state === 'error' ? 'Update not installed' : `Updating to ${info.version}`}</h2>
+              <p>{note.message}</p>
+            </div>
+            <div className="dialog-foot"><button className="btn-primary" onClick={() => setNote(null)}>OK</button></div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 /** Press and hold for 3 seconds (teachers will not open it by accident). */
 function useLongPress(onLong, ms = 3000) {
   const timer = useRef(null);
@@ -78,6 +124,7 @@ export default function Home({ onStart }) {
       </div>
       <div className="home-clock">
         <UpdateReady />
+        <AppUpdate />
         <Clock />
         {canExit && (
           <button className="btn-exit" onClick={() => quit()} aria-label="Exit Trinity Teaching">

@@ -12,5 +12,7 @@ contextBridge.exposeInMainWorld('trinityDesktop', {
     shellVersion: () => ipcRenderer.invoke('trinity:shell-version'),
     check: () => ipcRenderer.invoke('trinity:check-updates'),
     apply: () => ipcRenderer.invoke('trinity:apply-update'),
+    // Installs a newer version of the app itself (one click; the app restarts).
+    installShell: () => ipcRenderer.invoke('trinity:install-shell'),
   },
 });

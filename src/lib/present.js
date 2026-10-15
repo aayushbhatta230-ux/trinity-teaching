@@ -31,7 +31,7 @@ export function presentSupport() {
   if (desktopApp) return desktopApp.openPresentation ? 'yes' : 'old-app';
   return Board ? 'yes' : 'browser';
 }
-export const OLD_APP_MESSAGE = 'Install the latest Trinity Teaching app on this device once to present PowerPoint files. After that, presentations open in PowerPoint with all their animations and transitions.';
+export const OLD_APP_MESSAGE = 'This device has an older Trinity Teaching app. Tap Update app on the home screen once, then PowerPoint chapters open in PowerPoint with all their animations and transitions.';
 
 /**
  * Opens rec.file (a Blob) in the presentation app. `onProgress(fraction)` reports copying.

@@ -5,10 +5,13 @@ const { app, net } = require('electron');
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
+const { spawn } = require('node:child_process');
 
 // TRINITY_UPDATE_BASE overrides the channel (used for testing against a local server).
 const UPDATE_BASE = process.env.TRINITY_UPDATE_BASE || require('./package.json').updateBase;
 const BUNDLED = path.join(__dirname, 'app', 'index.html');
+// App installers are only ever downloaded from the college's public download page.
+const INSTALLER_BASE = 'https://github.com/aayushbhatta230-ux/trinity-teaching-app/releases/download/';
 const READY_TIMEOUT_MS = 20000;
 
 const dir = () => path.join(app.getPath('userData'), 'web-updates');
@@ -99,11 +102,39 @@ function createUpdater(getWindow) {
     if (next.file !== loaded.file) load(next);
   }
 
+  /**
+   * Updates the app itself (not just the web bundle) in one click: downloads the Windows setup
+   * named in update.json ("shell"), checks its SHA-256, runs it silently and restarts the app.
+   * Uploaded presentations live in the app-data folder and are kept.
+   */
+  async function installShell() {
+    const m = await (await fetchOk(`${UPDATE_BASE}update.json`)).json();
+    const w = m.shell?.windows;
+    if (!m.shell?.version || compareVersions(m.shell.version, app.getVersion()) <= 0) return { state: 'current' };
+    // Only installers from the college's own download page (or the test channel) are accepted.
+    const allowed = [INSTALLER_BASE, process.env.TRINITY_UPDATE_BASE].filter(Boolean);
+    if (!w?.url || !w.sha256 || !allowed.some((base) => w.url.startsWith(base))) throw new Error('No Windows installer is published for this version');
+
+    const buf = Buffer.from(await (await fetchOk(w.url)).arrayBuffer());
+    if (w.size && buf.length !== w.size) throw new Error(`Download incomplete (${buf.length} of ${w.size} bytes)`);
+    if (crypto.createHash('sha256').update(buf).digest('hex') !== w.sha256) throw new Error('Downloaded installer failed its integrity check');
+
+    const file = path.join(app.getPath('temp'), `TrinityTeaching-Setup-${m.shell.version}.exe`);
+    fs.writeFileSync(file, buf);
+    // /S: silent install over the current one; --force-run: start the app again afterwards.
+    const child = spawn(file, ['/S', '--force-run'], { detached: true, stdio: 'ignore' });
+    child.on('error', () => {});
+    child.unref();
+    setTimeout(() => app.quit(), 800);
+    return { state: 'installing', version: m.shell.version };
+  }
+
   return {
     start: () => load(loaded),
     ready: () => clearTimeout(readyTimer),
     check,
     apply,
+    installShell,
     webVersion: () => loaded.version,
   };
 }

@@ -16,7 +16,8 @@ import { useEffect, useState } from 'react';
 import { Capacitor, CapacitorHttp, WebView } from '@capacitor/core';
 import { App as NativeApp } from '@capacitor/app';
 import { Filesystem, Directory } from '@capacitor/filesystem';
-import { desktopApp, isNativeApp } from './native.js';
+import { desktopApp, isNativeApp, Board } from './native.js';
+import SHELL_RELEASE from '../../shell-release.json';
 
 export const UPDATE_BASE = 'https://github.com/aayushbhatta230-ux/trinity-teaching-app/releases/download/live/';
 export const WEB_VERSION = __APP_VERSION__;
@@ -129,6 +130,59 @@ export async function checkForUpdates() {
 }
 
 export const applyUpdate = () => platform?.apply();
+
+// ---------- updating the app itself (Windows setup / Android APK) ----------
+//
+// Most updates only replace the web bundle (above). When the installed app itself is older
+// than the latest published app (shell-release.json), the Home screen offers "Update app".
+// From app 1.7.0 the app installs the new version itself: Windows runs the setup silently and
+// restarts; Android downloads the APK and opens Android's own "Update" confirmation.
+// Older apps cannot do that, so they are sent to the download instead.
+
+export const LATEST_APP = SHELL_RELEASE.version;
+export const APP_DOWNLOAD = {
+  windows: 'https://github.com/aayushbhatta230-ux/trinity-teaching-app/releases/latest/download/TrinityTeaching-Setup.exe',
+  android: 'https://github.com/aayushbhatta230-ux/trinity-teaching-app/releases/latest/download/TrinityTeaching.apk',
+  page: 'github.com/aayushbhatta230-ux/trinity-teaching-app',
+};
+const SELF_INSTALL_FROM = '1.7.0'; // first app version that can install its own updates
+
+/** { available, version, oneClick } for the installed app, or null where not applicable. */
+export async function appUpdateInfo() {
+  if (!platform) return null;
+  const shell = await platform.shellVersion().catch(() => null);
+  if (!shell || compareVersions(LATEST_APP, shell) <= 0) return { available: false };
+  const oneClick = platform === desktop ? !!desktopApp.updates.installShell : compareVersions(shell, SELF_INSTALL_FROM) >= 0;
+  return { available: true, version: LATEST_APP, oneClick, installed: shell };
+}
+
+/**
+ * Installs the latest app. Resolves to { state, message }:
+ *   installing  the app is updating itself (Windows closes and reopens; Android shows its dialog)
+ *   permission  Android: allow "Install unknown apps" for Trinity Teaching, then tap again
+ *   browser     Android (older app): the download opened in the board's browser
+ *   manual      Windows (older app): install from the download page once
+ */
+export async function installAppUpdate() {
+  const info = await appUpdateInfo();
+  if (!info?.available) return { state: 'current' };
+  if (platform === desktop) {
+    if (info.oneClick) {
+      await desktopApp.updates.installShell();
+      return { state: 'installing', message: 'Installing the update… Trinity Teaching closes and opens again by itself.' };
+    }
+    return { state: 'manual', message: `This computer has an older Trinity Teaching (${info.installed}) that cannot update itself. Install the new one once: open ${APP_DOWNLOAD.page} in a web browser and choose Download for Windows. After that, every update is one click.` };
+  }
+  if (info.oneClick) {
+    const r = await Board.installApp();
+    if (r?.state === 'permission') return { state: 'permission', message: 'Turn on "Allow from this source" for Trinity Teaching, come back, then tap Update app again. This is needed only once.' };
+    if (r?.state === 'installing') return { state: 'installing', message: 'Tap Update (or Install) in the Android window to finish.' };
+    return { state: 'current' };
+  }
+  // Apps before 1.7.0: the board's browser downloads the new app (links outside the app open there).
+  window.location.href = APP_DOWNLOAD.android;
+  return { state: 'browser', message: 'The new app is downloading in the browser. When it finishes, open it and tap Install. After that, every update is one tap.' };
+}
 
 if (platform) {
   // A downloaded update that was not applied yet is applied at the next start of the app,

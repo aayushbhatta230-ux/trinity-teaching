@@ -103,9 +103,23 @@ On a PC with the project, `npm run publish-update -- -Notes "What changed"` does
 Either way, this builds the bundle and uploads `app.html` and `update.json` to the `live` release of [trinity-teaching-app](https://github.com/aayushbhatta230-ux/trinity-teaching-app/releases/tag/live). That release is a pre-release, so the normal download links are unaffected.
 
 - **Requirement:** the device needs internet to check for and download updates. Teaching works offline either way.
-- **When a new install is still needed:** only when the Windows or Android shell changes, that is `desktop/*.cjs` or the `android/` project.
-  - In that case, publish with `-MinShell <new version>` and build new installers.
-  - Older apps then show "Version X needs a new install of the app" instead of updating.
+
+### Updating the app itself (Update app)
+
+When the Windows or Android shell changes (`desktop/*.cjs` or the `android/` project), the app itself needs a new version too. From **app 1.7.0** this is also one click: the home screen shows **Update app to X**.
+
+- **Windows:** the app downloads the setup, checks its SHA-256, installs it silently over the current one and opens again. A computer where the app was installed for all users shows one Windows "Yes" (administrator) prompt.
+- **Android:** the app downloads the APK, checks its SHA-256 and opens Android's own **Update** confirmation, which no app can skip. The very first time, Android asks to allow "Install unknown apps" for Trinity Teaching; the app opens that switch.
+- Installers are only accepted from this project's public download page. Uploaded presentations are kept.
+- **Apps older than 1.7.0** cannot install anything themselves. Their **Update app** button opens the APK download in the board's browser (Android), or shows the download page to install once (Windows). After that one install, every update is one click.
+
+To release new installers:
+1. Raise the version in `package.json` (the build scripts copy it into the Windows and Android apps; raise `versionCode` in `android/app/build.gradle`).
+2. Build with `npm run apk` and `npm run windows`.
+3. Publish a release `vX.Y.Z` on [trinity-teaching-app](https://github.com/aayushbhatta230-ux/trinity-teaching-app/releases) with the files named `TrinityTeaching.apk` and `TrinityTeaching-Setup.exe`, marked as latest.
+4. Put that version, the two download URLs, SHA-256 checksums and sizes in [shell-release.json](shell-release.json), commit and push.
+5. Run **Publish update**. It adds `shell-release.json` to `update.json`, and the installed apps then show **Update app**.
+6. Raise `min_shell` only if the new web bundle cannot run on older apps at all. Older apps then show "Version X needs a new install of the app" instead of updating.
 
 ## Presentations
 
@@ -157,7 +171,7 @@ PowerPoint files are presented by PowerPoint, not by this app. The app only stor
 - **Boards and phones (Android):** the file opens in the board's office app (WPS Office, Microsoft PowerPoint …). If no such app is installed, the app says so; install one from the board's app store.
 - Use the presentation app's own controls (or a clicker) to move through slides and animations, and press Esc or Back to return to Trinity Teaching. Ask AI and the quiz stay available on the chapter screen.
 - The chapter screen shows the preview picture PowerPoint saves inside the file (slide 1), the slide count and the file name.
-- **Needs app 1.7.0 or later** (Windows setup or Android APK, installed once). Older installed apps receive this update but show a message asking for the new app when **Start presentation** is tapped.
+- **Needs app 1.7.0 or later.** Older installed apps receive this update; on them, **Start presentation** asks the teacher to tap **Update app** on the home screen first.
 
 ## Ask AI and AI Quiz
 

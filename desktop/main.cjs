@@ -59,6 +59,7 @@ if (!app.requestSingleInstanceLock()) {
   ipcMain.handle('trinity:shell-version', () => app.getVersion());
   ipcMain.handle('trinity:check-updates', () => updater.check());
   ipcMain.handle('trinity:apply-update', () => updater.apply());
+  ipcMain.handle('trinity:install-shell', () => updater.installShell());
   // PowerPoint chapters open in PowerPoint itself, from the original file.
   ipcMain.handle('trinity:open-presentation', (_e, name, data) => openPresentation(name, data));
 

@@ -1,0 +1,13 @@
+{
+  "version": "1.7.0",
+  "windows": {
+    "url": "https://github.com/aayushbhatta230-ux/trinity-teaching-app/releases/download/v1.7.0/TrinityTeaching-Setup.exe",
+    "sha256": "710bd98f3c035fc682c1e4661aa325228632665800778aacd04eb166edf25bc7",
+    "size": 94962252
+  },
+  "android": {
+    "url": "https://github.com/aayushbhatta230-ux/trinity-teaching-app/releases/download/v1.7.0/TrinityTeaching.apk",
+    "sha256": "de20898a7f68296840c6e80cd0481742811363bf88165305d118c4e853159c5e",
+    "size": 7836743
+  }
+}

@@ -74,6 +74,9 @@ jobs:
               notes: process.env.NOTES || "",
               publishedAt: new Date().toISOString().replace(/\.\d+Z$/, "Z"),
             };
+            // The latest installers of the app itself: apps from 1.7.0 install them in one click.
+            const shell = JSON.parse(fs.readFileSync("shell-release.json", "utf8"));
+            if (shell.version && shell.windows?.sha256 && shell.android?.sha256) manifest.shell = shell;
             fs.writeFileSync("out/update.json", JSON.stringify(manifest, null, 2));
             console.log("Update", version, manifest.size, "bytes");
           '
